@@ -16,7 +16,10 @@ namespace Snowdrift.Game
         public Image speedBar;
 
         float _trickTimer, _multPulse;
-        float _lastMult = 1f;
+        float _lastMult = -1f;
+        long _lastScore = -1;
+        int _lastDist = -1;
+        bool _wasPaused;
 
         void Awake()
         {
@@ -39,25 +42,29 @@ namespace Snowdrift.Game
         void Update()
         {
             var logic = score.Logic;
-            scoreText.text = logic.TotalScore.ToString("N0");
-            multText.text = $"x{logic.Multiplier:0.0}";
-            if (logic.Multiplier > _lastMult) _multPulse = 0.3f;
-            _lastMult = logic.Multiplier;
+            long curScore = logic.TotalScore;
+            if (curScore != _lastScore) { scoreText.text = curScore.ToString("N0"); _lastScore = curScore; }
+            float curMult = logic.Multiplier;
+            if (curMult > _lastMult) _multPulse = 0.3f;
+            if (curMult != _lastMult) { multText.text = $"x{curMult:0.0}"; _lastMult = curMult; }
             _multPulse -= Time.deltaTime;
             multText.transform.localScale = Vector3.one * (1f + Mathf.Max(0f, _multPulse) * 0.8f);
 
-            distText.text = $"{terrain.Distance.TrueDistance:0} m";
+            int curDist = Mathf.FloorToInt(terrain.Distance.TrueDistance);
+            if (curDist != _lastDist) { distText.text = $"{curDist} m"; _lastDist = curDist; }
             speedBar.fillAmount = Mathf.Clamp01(board.Velocity.magnitude / tuning.tuckSpeedCap);
 
             _trickTimer -= Time.deltaTime;
             trickText.enabled = _trickTimer > 0f;
-            pauseText.enabled = GameState.I.Paused;
-            if (pauseText.enabled)
+            bool paused = GameState.I.Paused;
+            pauseText.enabled = paused;
+            if (paused && !_wasPaused)
             {
                 pauseText.text = $"PAUSED\nBest: {PlayerPrefs.GetInt("best_score", 0):N0}  {PlayerPrefs.GetFloat("best_dist", 0f):0}m\n[Esc] resume  [R] restart  [Q] quit";
-                if (Keyboard.current != null && Keyboard.current.qKey.wasPressedThisFrame)
-                    Application.Quit();
             }
+            if (paused && Keyboard.current != null && Keyboard.current.qKey.wasPressedThisFrame)
+                Application.Quit();
+            _wasPaused = paused;
         }
     }
 }

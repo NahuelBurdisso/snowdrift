@@ -50,11 +50,14 @@ namespace Snowdrift.Game
             if (!board.Crashed && board.transform.position.z > shiftEvery) OriginShift();
 
             // Fall-off safety: if board falls more than 30m below expected ground, respawn it
-            float expectedY = Field.Height(board.transform.position.x, z) - _oyOff;
-            if (board.transform.position.y < expectedY - 30f)
+            if (!board.Crashed)
             {
-                var (pos, rot) = CorridorSpawnNear(board.transform.position);
-                board.Respawn(pos, rot);
+                float expectedY = Field.Height(board.transform.position.x, z) - _oyOff;
+                if (board.transform.position.y < expectedY - 30f)
+                {
+                    var (pos, rot) = CorridorSpawnNear(board.transform.position);
+                    board.Respawn(pos, rot);
+                }
             }
         }
 

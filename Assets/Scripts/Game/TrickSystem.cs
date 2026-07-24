@@ -11,11 +11,22 @@ namespace Snowdrift.Game
         public event Action<TrickResult, LandingGrade, float> OnTrickLanded; // result, grade, airtime
         readonly TrickTracker _tracker = new();
 
+        void OnAirborneChanged(bool air) { if (air) _tracker.BeginAir(); }
+        void OnLand(LandingGrade grade, float airtime) => OnTrickLanded?.Invoke(_tracker.EndAir(), grade, airtime);
+        void OnCrashed() => _tracker.EndAir();
+
         void Awake()
         {
-            board.OnAirborneChanged += air => { if (air) _tracker.BeginAir(); };
-            board.OnLand += (grade, airtime) => OnTrickLanded?.Invoke(_tracker.EndAir(), grade, airtime);
-            board.OnCrashed += () => { _tracker.EndAir(); };
+            board.OnAirborneChanged += OnAirborneChanged;
+            board.OnLand += OnLand;
+            board.OnCrashed += OnCrashed;
+        }
+
+        void OnDestroy()
+        {
+            board.OnAirborneChanged -= OnAirborneChanged;
+            board.OnLand -= OnLand;
+            board.OnCrashed -= OnCrashed;
         }
 
         void FixedUpdate()

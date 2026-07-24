@@ -49,6 +49,8 @@ namespace Snowdrift.Game
             {
                 Destroy(_tumbleCol);
                 Destroy(_tumbleBody);
+                _tumbleCol = null;
+                _tumbleBody = null;
                 visual.SetParent(board.transform, false);
                 visual.localPosition = Vector3.zero; visual.localRotation = Quaternion.identity;
             }
@@ -60,6 +62,8 @@ namespace Snowdrift.Game
             if (_tumbleBody == null) yield break;
             Destroy(_tumbleCol);
             Destroy(_tumbleBody);
+            _tumbleCol = null;
+            _tumbleBody = null;
             visual.SetParent(board.transform, false);
             visual.localPosition = Vector3.zero; visual.localRotation = Quaternion.identity;
             var (pos, rot) = terrain.CorridorSpawnNear(board.transform.position);

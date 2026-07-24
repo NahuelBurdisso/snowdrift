@@ -8,3 +8,4 @@
 *.sln
 test-results.xml
 *.log
+.vscode/

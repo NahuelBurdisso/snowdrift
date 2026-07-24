@@ -15,14 +15,20 @@ namespace Snowdrift.Game
         public SlopeField Field { get; private set; }
 
         readonly Dictionary<int, TerrainChunk> _chunks = new();
+        readonly List<int> _dead = new();
         float _ozOff, _oyOff;      // accumulated origin offsets (slope-space -> world)
         float _lastZ;              // player slope-z last fix
-        public System.Action<Vector3> OnOriginShifted; // arg = world-position delta applied to everything
+        public event System.Action<Vector3> OnOriginShifted; // arg = world-position delta applied to everything
 
         void Awake()
         {
             Field = new SlopeField(seed, 15f, 4f, 0.015f, 0.6f, 0.08f);
             GameState.I.OnRestart += Regenerate;
+        }
+
+        void OnDestroy()
+        {
+            if (GameState.I != null) GameState.I.OnRestart -= Regenerate;
         }
 
         void Start() => Regenerate();
@@ -37,11 +43,11 @@ namespace Snowdrift.Game
 
             int cur = Mathf.FloorToInt(z / TerrainChunk.Length);
             for (int i = cur - 2; i <= cur + 4; i++) EnsureChunk(i);
-            var dead = new List<int>();
-            foreach (var kv in _chunks) if (kv.Key < cur - 2 || kv.Key > cur + 4) dead.Add(kv.Key);
-            foreach (var k in dead) { Destroy(_chunks[k].gameObject); _chunks.Remove(k); }
+            _dead.Clear();
+            foreach (var kv in _chunks) if (kv.Key < cur - 2 || kv.Key > cur + 4) _dead.Add(kv.Key);
+            foreach (var k in _dead) { Destroy(_chunks[k].gameObject); _chunks.Remove(k); }
 
-            if (board.transform.position.z > shiftEvery) OriginShift();
+            if (!board.Crashed && board.transform.position.z > shiftEvery) OriginShift();
 
             // Fall-off safety: if board falls more than 30m below expected ground, respawn it
             float expectedY = Field.Height(board.transform.position.x, z) - _oyOff;

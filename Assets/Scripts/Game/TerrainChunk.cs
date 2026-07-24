@@ -47,7 +47,7 @@ namespace Snowdrift.Game
         void SpawnFeatures(SlopeField field, float slopeZ, float ozOff, float oyOff,
                            System.Func<Vector3, float, int, GameObject> spawn, int difficulty)
         {
-            var rng = new System.Random((int)slopeZ);
+            var rng = new System.Random(Mathf.RoundToInt(slopeZ / Length));
             int features = Mathf.Min(2 + difficulty, 10);
             for (int i = 0; i < features; i++)
             {

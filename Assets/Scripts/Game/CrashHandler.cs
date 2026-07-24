@@ -16,6 +16,7 @@ namespace Snowdrift.Game
 
         void HandleCrash()
         {
+            if (_tumbleBody != null) return;
             // Detach visual, give it physics + random tumble
             visual.SetParent(null);
             _tumbleBody = visual.gameObject.AddComponent<Rigidbody>();

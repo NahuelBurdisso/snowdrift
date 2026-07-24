@@ -29,7 +29,7 @@ namespace Snowdrift.Game
         [Header("Alignment Rates")]
         public float groundAlignRate = 10f;      // slerp rate aligning board to surface on ground
         public float autoLandSlerpRate = 8f;     // slerp rate of auto-land assist
-        public float autoLandMomentumDecay = 0.8f; // rotation momentum damp during assist
+        public float autoLandDecayRate = 11.16f;    // exp decay rate (per second) during auto-land assist
         [Header("Air")]
         public float spinDegPerSec = 420f;
         public float flipDegPerSec = 380f;

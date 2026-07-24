@@ -31,7 +31,7 @@ MonoBehaviour:
   jumpBuffer: 0.1
   groundAlignRate: 10
   autoLandSlerpRate: 8
-  autoLandMomentumDecay: 0.8
+  autoLandDecayRate: 11.16
   spinDegPerSec: 420
   flipDegPerSec: 380
   airRotAccel: 8

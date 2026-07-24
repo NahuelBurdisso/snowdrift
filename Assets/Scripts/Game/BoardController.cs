@@ -73,6 +73,7 @@ namespace Snowdrift.Game
                 BecomeAirborne();
             }
 
+            if (Crashed) return;
             if (!_airborne) GroundMove(dt);
             else AirMove(dt);
         }
@@ -137,7 +138,7 @@ namespace Snowdrift.Game
                 var fwd = Vector3.ProjectOnPlane(transform.forward, n).normalized;
                 if (fwd.sqrMagnitude > 1e-4f)
                     _rb.MoveRotation(Quaternion.Slerp(_rb.rotation, Quaternion.LookRotation(fwd, n), tuning.autoLandSlerpRate * dt));
-                _yawVel *= tuning.autoLandMomentumDecay; _pitchVel *= tuning.autoLandMomentumDecay;
+                float decay = Mathf.Exp(-tuning.autoLandDecayRate * dt); _yawVel *= decay; _pitchVel *= decay;
             }
             transform.Rotate(_pitchVel * dt, 0f, 0f, Space.Self); // pitch (flip)
             transform.Rotate(0f, _yawVel * dt, 0f, Space.World);  // yaw (spin)

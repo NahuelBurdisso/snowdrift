@@ -37,7 +37,7 @@ namespace Snowdrift.Game
         {
             if (grade != LandingGrade.Clean) return;
             landBurst.Play();
-            if (landThump != null) oneShots.PlayOneShot(landThump, Mathf.Clamp01(0.3f + airtime * 0.4f));
+            if (landThump != null && oneShots != null) oneShots.PlayOneShot(landThump, Mathf.Clamp01(0.3f + airtime * 0.4f));
             if (airtime > tuning.minAirtimeForHitstop) StartCoroutine(Hitstop(0.04f));
         }
 
@@ -74,9 +74,12 @@ namespace Snowdrift.Game
             sem.rateOverTime = lines * 60f;
             if (_vignette != null) _vignette.intensity.value = 0.15f + lines * 0.2f;
 
-            windLoop.volume = Mathf.Lerp(0.1f, 0.8f, speedFrac) * (board.GrabHeld && board.Airborne ? 0.4f : 1f);
-            windLoop.pitch = Mathf.Lerp(0.8f, 1.4f, speedFrac);
-            carveLoop.volume = board.Airborne ? 0f : Mathf.Clamp01(slip * 0.15f);
+            if (windLoop != null)
+            {
+                windLoop.volume = Mathf.Lerp(0.1f, 0.8f, speedFrac) * (board.GrabHeld && board.Airborne ? 0.4f : 1f);
+                windLoop.pitch = Mathf.Lerp(0.8f, 1.4f, speedFrac);
+            }
+            if (carveLoop != null) carveLoop.volume = board.Airborne ? 0f : Mathf.Clamp01(slip * 0.15f);
             trail.emitting = !board.Airborne && !board.Crashed;
         }
     }

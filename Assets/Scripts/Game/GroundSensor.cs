@@ -32,13 +32,12 @@ namespace Snowdrift.Game
             }
         }
 
-        // Predicted touchdown for auto-land assist: raycast down from board along velocity.
+        // Predicted touchdown for auto-land assist: gravity-aware arc prediction.
         public bool PredictLanding(Vector3 velocity, float window, out Vector3 normal)
         {
             normal = Vector3.up;
-            var future = transform.position + velocity * window;
-            if (Physics.Raycast(transform.position, (future - transform.position).normalized,
-                out var hit, velocity.magnitude * window + 1f, groundMask))
+            var future = transform.position + velocity * window + 0.5f * Physics.gravity * window * window;
+            if (Physics.Raycast(future + Vector3.up * 2f, Vector3.down, out var hit, 6f, groundMask))
             { normal = hit.normal; return true; }
             return false;
         }

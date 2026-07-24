@@ -11,6 +11,7 @@ namespace Snowdrift.Game
         public TerrainStream terrain;
 
         Rigidbody _tumbleBody;
+        CapsuleCollider _tumbleCol;
 
         void Awake() => board.OnCrashed += HandleCrash;
 
@@ -22,12 +23,16 @@ namespace Snowdrift.Game
             _tumbleBody = visual.gameObject.AddComponent<Rigidbody>();
             _tumbleBody.linearVelocity = board.Velocity;
             _tumbleBody.AddTorque(Random.insideUnitSphere * 20f, ForceMode.VelocityChange);
+            var col = visual.gameObject.AddComponent<CapsuleCollider>();
+            col.height = 1.6f; col.radius = 0.35f; col.center = Vector3.up * 0.8f;
+            _tumbleCol = col;
             StartCoroutine(RespawnAfterDelay());
         }
 
         IEnumerator RespawnAfterDelay()
         {
             yield return new WaitForSeconds(tuning.respawnDelay);
+            Destroy(_tumbleCol);
             Destroy(_tumbleBody);
             visual.SetParent(board.transform, false);
             visual.localPosition = Vector3.zero; visual.localRotation = Quaternion.identity;

@@ -60,7 +60,7 @@ namespace Snowdrift.Game
 
         void EnsureChunk(int index)
         {
-            if (index < 0 || _chunks.ContainsKey(index)) return;
+            if (index < -1 || _chunks.ContainsKey(index)) return;
             var go = new GameObject($"chunk_{index}");
             go.transform.SetParent(transform);
             var chunk = go.AddComponent<TerrainChunk>();

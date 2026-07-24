@@ -111,7 +111,8 @@ namespace Snowdrift.Game
             // Align board to smoothed normal, keep yaw
             var up = n;
             var fwd = Vector3.ProjectOnPlane(transform.forward, up).normalized;
-            _rb.MoveRotation(Quaternion.Slerp(_rb.rotation, Quaternion.LookRotation(fwd, up), tuning.groundAlignRate * dt));
+            if (fwd.sqrMagnitude > 1e-4f)
+                _rb.MoveRotation(Quaternion.Slerp(_rb.rotation, Quaternion.LookRotation(fwd, up), tuning.groundAlignRate * dt));
             CountRotation();
         }
 
@@ -134,7 +135,8 @@ namespace Snowdrift.Game
                 && Vector3.Angle(transform.up, n) <= tuning.autoLandMaxAngle)
             {
                 var fwd = Vector3.ProjectOnPlane(transform.forward, n).normalized;
-                _rb.MoveRotation(Quaternion.Slerp(_rb.rotation, Quaternion.LookRotation(fwd, n), tuning.autoLandSlerpRate * dt));
+                if (fwd.sqrMagnitude > 1e-4f)
+                    _rb.MoveRotation(Quaternion.Slerp(_rb.rotation, Quaternion.LookRotation(fwd, n), tuning.autoLandSlerpRate * dt));
                 _yawVel *= tuning.autoLandMomentumDecay; _pitchVel *= tuning.autoLandMomentumDecay;
             }
             transform.Rotate(_pitchVel * dt, 0f, 0f, Space.Self); // pitch (flip)

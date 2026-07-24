@@ -26,11 +26,11 @@ namespace Snowdrift.Game
             AudioListener.pause = p;
         }
 
-        public static void SaveBest(long score, float distance)
+        public static void SaveBest(int score, float distance)
         {
             try
             {
-                if (score > PlayerPrefs.GetInt("best_score", 0)) PlayerPrefs.SetInt("best_score", (int)score);
+                if (score > PlayerPrefs.GetInt("best_score", 0)) PlayerPrefs.SetInt("best_score", score);
                 if (distance > PlayerPrefs.GetFloat("best_dist", 0f)) PlayerPrefs.SetFloat("best_dist", distance);
                 PlayerPrefs.Save();
             }

@@ -26,6 +26,10 @@ namespace Snowdrift.Game
         public float chargeTime = 0.3f;
         public float coyoteTime = 0.1f;
         public float jumpBuffer = 0.1f;
+        [Header("Alignment Rates")]
+        public float groundAlignRate = 10f;      // slerp rate aligning board to surface on ground
+        public float autoLandSlerpRate = 8f;     // slerp rate of auto-land assist
+        public float autoLandMomentumDecay = 0.8f; // rotation momentum damp during assist
         [Header("Air")]
         public float spinDegPerSec = 420f;
         public float flipDegPerSec = 380f;

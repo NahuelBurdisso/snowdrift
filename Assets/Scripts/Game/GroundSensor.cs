@@ -7,13 +7,11 @@ namespace Snowdrift.Game
         public LayerMask groundMask;
         public float rayLength = 1.2f;
         public Vector2 footprint = new Vector2(0.3f, 0.8f); // half extents (x, z)
-        public float smoothHz = 15f;
-
         public bool Grounded { get; private set; }
         public Vector3 SmoothedNormal { get; private set; } = Vector3.up;
         public float GroundDistance { get; private set; }
 
-        public void Sense()
+        public void Sense(float smoothHz)
         {
             int hits = 0; Vector3 nSum = Vector3.zero; float dMin = float.MaxValue;
             var t = transform;

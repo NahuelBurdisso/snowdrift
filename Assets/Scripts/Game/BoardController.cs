@@ -44,6 +44,7 @@ namespace Snowdrift.Game
             _steerInput = (k.dKey.isPressed ? 1f : 0f) - (k.aKey.isPressed ? 1f : 0f)
                         + (k.rightArrowKey.isPressed ? 1f : 0f) - (k.leftArrowKey.isPressed ? 1f : 0f);
             _flipInput = (k.sKey.isPressed ? 1f : 0f) - (k.wKey.isPressed ? 1f : 0f);
+            _steerInput = Mathf.Clamp(_steerInput, -1f, 1f);
             _tuck = k.wKey.isPressed; _drift = k.leftShiftKey.isPressed;
             _grabL = k.jKey.isPressed; _grabR = k.kKey.isPressed;
 
@@ -61,7 +62,7 @@ namespace Snowdrift.Game
         void FixedUpdate()
         {
             if (Crashed) return;
-            _sensor.Sense();
+            _sensor.Sense(tuning.normalSmoothHz);
             float dt = Time.fixedDeltaTime;
             bool groundedNow = _sensor.Grounded && !_airborne || (_sensor.Grounded && _rb.linearVelocity.y <= 0.1f);
 
@@ -110,7 +111,7 @@ namespace Snowdrift.Game
             // Align board to smoothed normal, keep yaw
             var up = n;
             var fwd = Vector3.ProjectOnPlane(transform.forward, up).normalized;
-            _rb.MoveRotation(Quaternion.Slerp(_rb.rotation, Quaternion.LookRotation(fwd, up), 10f * dt));
+            _rb.MoveRotation(Quaternion.Slerp(_rb.rotation, Quaternion.LookRotation(fwd, up), tuning.groundAlignRate * dt));
             CountRotation();
         }
 
@@ -133,8 +134,8 @@ namespace Snowdrift.Game
                 && Vector3.Angle(transform.up, n) <= tuning.autoLandMaxAngle)
             {
                 var fwd = Vector3.ProjectOnPlane(transform.forward, n).normalized;
-                _rb.MoveRotation(Quaternion.Slerp(_rb.rotation, Quaternion.LookRotation(fwd, n), 8f * dt));
-                _yawVel *= 0.8f; _pitchVel *= 0.8f;
+                _rb.MoveRotation(Quaternion.Slerp(_rb.rotation, Quaternion.LookRotation(fwd, n), tuning.autoLandSlerpRate * dt));
+                _yawVel *= tuning.autoLandMomentumDecay; _pitchVel *= tuning.autoLandMomentumDecay;
             }
             transform.Rotate(_pitchVel * dt, 0f, 0f, Space.Self); // pitch (flip)
             transform.Rotate(0f, _yawVel * dt, 0f, Space.World);  // yaw (spin)
@@ -205,7 +206,7 @@ namespace Snowdrift.Game
         void OnCollisionEnter(Collision c)
         {
             if (Crashed) return;
-            if (c.gameObject.CompareTag("Obstacle") && Velocity.magnitude > tuning.obstacleCrashSpeed)
+            if (c.gameObject.CompareTag("Obstacle") && c.relativeVelocity.magnitude > tuning.obstacleCrashSpeed)
                 Crash(); // below threshold: physics bounce happens naturally
         }
     }

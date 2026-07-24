@@ -172,9 +172,10 @@ namespace Snowdrift.Game
         {
             _airborne = false;
             var n = _sensor.SmoothedNormal;
-            float yawOff = Vector3.SignedAngle(
-                Vector3.ProjectOnPlane(_rb.linearVelocity, n),
-                Vector3.ProjectOnPlane(transform.forward, n), n);
+            var projVel = Vector3.ProjectOnPlane(_rb.linearVelocity, n);
+            float yawOff = projVel.sqrMagnitude < 0.25f
+                ? 0f
+                : Vector3.SignedAngle(projVel, Vector3.ProjectOnPlane(transform.forward, n), n);
             float flipOff = Vector3.Angle(transform.up, n);
             var grade = LandingJudge.Judge(yawOff, flipOff, tuning.cleanDeg, tuning.sloppyDeg);
 

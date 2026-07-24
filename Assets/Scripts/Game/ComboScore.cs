@@ -11,6 +11,8 @@ namespace Snowdrift.Game
         public TerrainStream terrain;
         public ComboLogic Logic { get; } = new();
 
+        float _lastDistance;
+
         void Awake()
         {
             tricks.OnTrickLanded += (r, grade, _) =>
@@ -25,7 +27,9 @@ namespace Snowdrift.Game
 
         void HandleRestart()
         {
-            GameState.SaveBest((int)System.Math.Min(Logic.TotalScore, int.MaxValue), terrain.Distance.TrueDistance);
+            int score = (int)System.Math.Min(Logic.TotalScore, int.MaxValue);
+            float dist = Mathf.Max(terrain.Distance.TrueDistance, _lastDistance);
+            GameState.SaveBest(score, dist);
             Logic.Reset();
         }
 
@@ -40,10 +44,11 @@ namespace Snowdrift.Game
             if (board.Crashed) return;
             float speedFrac = board.Velocity.magnitude / tuning.softSpeedCap;
             Logic.AddPassive(speedFrac * tuning.speedTricklePerSec * Time.fixedDeltaTime);
+            _lastDistance = terrain.Distance.TrueDistance;
         }
 
         public void OnNearMiss() => Logic.AddPassive(tuning.nearMissScore);
 
-        void OnApplicationQuit() => GameState.SaveBest((int)System.Math.Min(Logic.TotalScore, int.MaxValue), terrain.Distance.TrueDistance);
+        void OnApplicationQuit() => GameState.SaveBest((int)System.Math.Min(Logic.TotalScore, int.MaxValue), Mathf.Max(terrain.Distance.TrueDistance, _lastDistance));
     }
 }

@@ -24,11 +24,19 @@ namespace Snowdrift.Game
         void Awake()
         {
             tricks.OnTrickLanded += HandleTrickLanded;
+            GameState.I.OnRestart += HandleRestart;
         }
 
         void OnDestroy()
         {
             if (tricks != null) tricks.OnTrickLanded -= HandleTrickLanded;
+            if (GameState.I != null) GameState.I.OnRestart -= HandleRestart;
+        }
+
+        void HandleRestart()
+        {
+            _trickTimer = 0f;
+            trickText.enabled = false;
         }
 
         void HandleTrickLanded(TrickResult r, LandingGrade grade, float airtime)

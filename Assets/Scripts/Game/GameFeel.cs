@@ -25,6 +25,8 @@ namespace Snowdrift.Game
             if (postVolume != null) postVolume.profile.TryGet(out _vignette);
             tricks.OnTrickLanded += HandleTrickLanded;
             terrain.OnOriginShifted += HandleOriginShifted;
+            if (carveLoop != null && !carveLoop.isPlaying) carveLoop.Play();
+            if (windLoop != null && !windLoop.isPlaying) windLoop.Play();
         }
 
         void OnDestroy()

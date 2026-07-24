@@ -200,6 +200,8 @@ namespace Snowdrift.Game
             transform.SetPositionAndRotation(pos, rot);
             _rb.linearVelocity = Vector3.zero;
             _lean = 0f; _yawVel = 0f; _pitchVel = 0f;
+            _charge = 0f; _buffer = 0f; _coyote = 0f; _chargeHeld = false;
+            _tuck = false; _drift = false; _grabL = false; _grabR = false; _airTime = 0f;
             OnAirborneChanged?.Invoke(false);
         }
 

@@ -14,4 +14,5 @@ public class LandingJudgeTests
     [Test] public void Flip70Off_Crash() => Assert.AreEqual(LandingGrade.Crash, Judge(0f, 70f));
     [Test] public void WorstAxisWins() => Assert.AreEqual(LandingGrade.Sloppy, Judge(10f, 40f));
     [Test] public void Yaw90_MaxDeviation_Crash() => Assert.AreEqual(LandingGrade.Crash, Judge(90f, 0f));
+    [Test] public void Flip350_Clean() => Assert.AreEqual(LandingGrade.Clean, Judge(0f, 350f)); // 10° off full rotation
 }

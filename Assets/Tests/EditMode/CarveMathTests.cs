@@ -46,4 +46,12 @@ public class CarveMathTests
         float down = 1f - CarveMath.StepLean(current: 1f, target: 0f, attack: 12f, release: 5f, dt: 0.05f);
         Assert.Greater(up, down);
     }
+
+    [Test]
+    public void SteerLean_ReversalUsesAttackRate()
+    {
+        // current=1, target=-1: sign reversal -> attack rate (12). Expected: 1 - 12*0.05 = 0.4
+        float result = CarveMath.StepLean(current: 1f, target: -1f, attack: 12f, release: 5f, dt: 0.05f);
+        Assert.AreEqual(0.4f, result, 1e-4f);
+    }
 }

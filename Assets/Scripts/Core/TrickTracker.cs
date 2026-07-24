@@ -22,8 +22,8 @@ namespace Snowdrift.Core
         public void AddRotation(float yawDeltaDeg, float pitchDeltaDeg)
         {
             if (!_airborne) return;
-            _yaw += Mathf.Abs(yawDeltaDeg);
-            _pitch += Mathf.Abs(pitchDeltaDeg);
+            _yaw += yawDeltaDeg;
+            _pitch += pitchDeltaDeg;
         }
 
         public void TickGrab(float dt, float grabScorePerSec)
@@ -34,10 +34,11 @@ namespace Snowdrift.Core
 
         public TrickResult EndAir()
         {
+            if (!_airborne) return default(TrickResult);
             _airborne = false;
-            int n = Mathf.RoundToInt(_yaw / 180f);
-            int flips = Mathf.RoundToInt(_pitch / 360f);
-            bool rotating = _yaw >= 180f || _pitch >= 180f;
+            int n = Mathf.RoundToInt(Mathf.Abs(_yaw) / 180f);
+            int flips = Mathf.RoundToInt(Mathf.Abs(_pitch) / 360f);
+            bool rotating = n > 0 || flips > 0;
             return new TrickResult
             {
                 Spin180s = n,

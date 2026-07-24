@@ -11,7 +11,8 @@ namespace Snowdrift.Core
         {
             float yaw = Mathf.Abs(Mathf.DeltaAngle(0f, yawOffsetDeg)); // 0..180
             yaw = Mathf.Min(yaw, 180f - yaw);                          // distance to nearest multiple of 180
-            float worst = Mathf.Max(yaw, Mathf.Abs(flipOffsetDeg));
+            float flip = Mathf.Abs(Mathf.DeltaAngle(0f, flipOffsetDeg)); // fold into [0,180]
+            float worst = Mathf.Max(yaw, flip);
             if (worst <= cleanDeg) return LandingGrade.Clean;
             if (worst <= sloppyDeg) return LandingGrade.Sloppy;
             return LandingGrade.Crash;

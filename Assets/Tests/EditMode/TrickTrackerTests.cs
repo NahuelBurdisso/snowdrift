@@ -56,4 +56,29 @@ public class TrickTrackerTests
         t.BeginAir();
         Assert.AreEqual(0, t.EndAir().SpinScore);
     }
+
+    [Test]
+    public void EndAir_Twice_SecondReturnsZero()
+    {
+        var t = new TrickTracker();
+        t.BeginAir();
+        t.AddRotation(360f, 0f);
+        var first = t.EndAir();
+        Assert.AreEqual(250, first.SpinScore); // sanity: 360 = 2 half-spins => 25*4+75*2=250
+        var second = t.EndAir();
+        Assert.AreEqual(0, second.Total);
+    }
+
+    [Test]
+    public void WiggleFarming_NetsToZero()
+    {
+        var t = new TrickTracker();
+        t.BeginAir();
+        t.AddRotation(+95f, 0f);
+        t.AddRotation(-95f, 0f);
+        t.AddRotation(+95f, 0f);
+        t.AddRotation(-95f, 0f);
+        var r = t.EndAir();
+        Assert.AreEqual(0, r.Spin180s);
+    }
 }

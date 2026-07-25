@@ -7,7 +7,7 @@ namespace Snowdrift.Core
         public bool Grounded;
         public float ChargeFraction;   // 0..1
         public bool GrabLeft, GrabRight;
-        public float TimeToLanding;    // seconds; pass float.MaxValue when unknown
+        public float TimeToLanding;    // seconds; pass float.PositiveInfinity when unknown
     }
 
     public struct RiderAnimParams
@@ -23,7 +23,7 @@ namespace Snowdrift.Core
 
         // Priority: Grounded > GrabL > GrabR > Brace > Air.
         // GrabL wins ties when both grab buttons are held (documented).
-        // Callers must pass float.MaxValue for TimeToLanding when unknown;
+        // Callers must pass float.PositiveInfinity for TimeToLanding when unknown;
         // default(RiderAnimInput).TimeToLanding == 0 would otherwise trigger Brace.
         public static RiderAnimParams Map(in RiderAnimInput i)
         {

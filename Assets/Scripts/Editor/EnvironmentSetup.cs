@@ -54,8 +54,13 @@ namespace Snowdrift.Editor
         private const float TreeTargetHeight = 8f;  // match tree obstacle world height
         private const float RockTargetHeight = 1.8f; // match rock obstacle world height (scale.y)
 
-        // Near-miss trigger (matches TerrainStream)
-        private const float NearMissTriggerRadius = 2.5f;
+        // Near-miss trigger radii — must match the WORLD radius produced by the primitive fallback path.
+        // Primitives add SphereCollider(r=2.5) to the SCALED GO; Unity scales a SphereCollider by
+        // max(scale.x, scale.y, scale.z).  Prefab roots are unscaled, so we bake the world value directly.
+        //   Tree  primitive: scale (1.2, 4.0, 1.2) → max=4 → world r = 2.5 × 4  = 10 m
+        //   Rock  primitive: scale (2.5, 1.8, 2.5) → max=2.5 → world r = 2.5 × 2.5 = 6.25 m
+        private const float TreeNearMissTriggerRadius = 10f;
+        private const float RockNearMissTriggerRadius = 6.25f;
 
         // ─────────────────────────────────────────────────────────────────────
         // Menu entry
@@ -174,34 +179,48 @@ namespace Snowdrift.Editor
 
             if (isTree)
             {
-                // Capsule collider matching the primitive tree obstacle:
-                //   world height = 8m, radius = 0.6m
+                // Capsule collider matching the primitive tree obstacle world span.
+                // Primitive: Capsule GO scale (1.2, 4, 1.2), CapsuleCollider default h=2 r=0.5,
+                //   spawned at pos + 2Y (this becomes the capsule center in world space).
+                //   World h = 4*2 = 8m, world r = 1.2*0.5 = 0.6m.
+                //   Capsule half-height = 4m → world span = (pos.y+2 - 4)..(pos.y+2 + 4)
+                //                                         = pos.y - 2 .. pos.y + 6.
+                // Prefab root is spawned at pos (no Y offset — TerrainStream tree-prefab branch uses +0Y).
+                //   To reproduce the same span, center.y = 2 → half-height 4 →
+                //   span (pos.y + 2 - 4)..(pos.y + 2 + 4) = pos.y - 2 .. pos.y + 6.  ✓
                 var cc = root.AddComponent<CapsuleCollider>();
                 cc.height = TreeColliderHeight;
                 cc.radius = TreeColliderRadius;
-                // Center: capsule is centered at height/2 above the base, matching the +2f Y offset
-                // The original tree spawns at pos+2f Y (center of the capsule in primitive space).
-                // So the capsule center should be at height/2 = 4f above root.
-                cc.center = new Vector3(0f, TreeColliderHeight / 2f, 0f);
+                cc.center = new Vector3(0f, 2f, 0f);
             }
             else
             {
-                // Sphere collider matching the primitive rock obstacle:
-                //   world radius = 1.25m (SphereCollider r=0.5 * scale.x 2.5)
+                // Sphere collider matching the primitive rock obstacle world span.
+                // Primitive: Sphere GO scale (2.5, 1.8, 2.5), SphereCollider default r=0.5,
+                //   spawned at pos + 0.5Y (this becomes sphere center in world).
+                //   World r = 2.5*0.5 = 1.25m → span = (pos.y+0.5 - 1.25)..(pos.y+0.5 + 1.25)
+                //                                     = pos.y - 0.75 .. pos.y + 1.75.
+                // Prefab root is spawned at pos (no Y offset — TerrainStream rock-prefab branch
+                //   removes the +0.5Y; see SpawnFeature kind==0).
+                //   To reproduce the same span, center.y = 0.5 → r=1.25 →
+                //   span (pos.y + 0.5 - 1.25)..(pos.y + 0.5 + 1.25) = pos.y - 0.75 .. pos.y + 1.75.  ✓
                 var sc = root.AddComponent<SphereCollider>();
                 sc.radius = RockColliderRadius;
-                // The original rock spawns at pos+0.5f Y (center of sphere in world).
-                sc.center = new Vector3(0f, RockColliderRadius, 0f);
+                sc.center = new Vector3(0f, 0.5f, 0f);
             }
 
-            // Near-miss trigger shell (replicating TerrainStream primitive path)
+            // Near-miss trigger shell — world radii match the primitive fallback path.
+            // Primitive adds SphereCollider(r=2.5) to the scaled GO; Unity scales by max(scale axis).
+            //   Tree:  max(1.2,4,1.2)=4  → world r = 2.5×4   = 10 m
+            //   Rock:  max(2.5,1.8,2.5)=2.5 → world r = 2.5×2.5 = 6.25 m
+            // Prefab roots are unscaled, so we store the baked world value directly.
             var trig = root.AddComponent<SphereCollider>();
             trig.isTrigger = true;
-            trig.radius    = NearMissTriggerRadius;
+            trig.radius    = isTree ? TreeNearMissTriggerRadius : RockNearMissTriggerRadius;
             if (isTree)
-                trig.center = new Vector3(0f, TreeColliderHeight / 2f, 0f);
+                trig.center = new Vector3(0f, 2f, 0f);
             else
-                trig.center = new Vector3(0f, RockColliderRadius, 0f);
+                trig.center = new Vector3(0f, 0.5f, 0f);
 
             root.AddComponent<NearMissZone>();
 
@@ -235,8 +254,7 @@ namespace Snowdrift.Editor
 
             // ── Save prefab ───────────────────────────────────────────────────
             var saved = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
-            Object.DestroyImmediate(root);   // clean up temp scene objects
-            Object.DestroyImmediate(visual); // SaveAsPrefabAsset already persisted the data
+            Object.DestroyImmediate(root);   // destroys root + all children (including visual) — do not destroy visual again
 
             Debug.Log($"[EnvironmentSetup] Saved prefab: {prefabPath}");
             return saved;
@@ -271,8 +289,7 @@ namespace Snowdrift.Editor
             RemoveCollidersFromSubtree(visual);
 
             var saved = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
-            Object.DestroyImmediate(root);
-            Object.DestroyImmediate(visual);
+            Object.DestroyImmediate(root);   // destroys root + all children (including visual) — do not destroy visual again
 
             Debug.Log($"[EnvironmentSetup] Saved border pine prefab: {prefabPath}");
             return saved;

@@ -57,7 +57,7 @@ CapsuleCollider:
   m_Radius: 0.6
   m_Height: 8
   m_Direction: 1
-  m_Center: {x: 0, y: 4, z: 0}
+  m_Center: {x: 0, y: 2, z: 0}
 --- !u!135 &2018400209825896053
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -77,8 +77,8 @@ SphereCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Radius: 2.5
-  m_Center: {x: 0, y: 4, z: 0}
+  m_Radius: 10
+  m_Center: {x: 0, y: 2, z: 0}
 --- !u!114 &5259615822410977800
 MonoBehaviour:
   m_ObjectHideFlags: 0

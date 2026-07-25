@@ -115,8 +115,11 @@ namespace Snowdrift.Game
                 var pool = rockPrefabs;
                 if (pool != null && pool.Length > 0 && pool[0] != null)
                 {
+                    // Spawn prefab at pos (no Y offset). The prefab's SphereCollider has center (0, 0.5, 0)
+                    // so the world sphere center lands at pos.y + 0.5, matching the primitive fallback
+                    // (which spawns at pos+0.5Y with collider center (0,0,0)).
                     int idx = System.Math.Abs(Mathf.RoundToInt(slopeZ * 7)) % pool.Length;
-                    go = Object.Instantiate(pool[idx], pos + Vector3.up * 0.5f, Quaternion.identity);
+                    go = Object.Instantiate(pool[idx], pos, Quaternion.identity);
                     go.name = "rock_prop";
                 }
                 else

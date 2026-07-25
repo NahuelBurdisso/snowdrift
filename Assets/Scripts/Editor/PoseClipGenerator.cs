@@ -124,16 +124,26 @@ namespace Snowdrift.Editor
                         AnimationUtility.GetCurveBindings(clip),
                         new AnimationCurve[AnimationUtility.GetCurveBindings(clip).Length]);
 
+                var invalidMuscles = new System.Collections.Generic.List<string>();
                 foreach (var pc in pose.Curves)
                 {
                     if (!ValidateMuscle(pc.Muscle, validMuscles))
+                    {
+                        invalidMuscles.Add(pc.Muscle);
                         continue; // error already logged inside ValidateMuscle
+                    }
 
                     var binding = EditorCurveBinding.FloatCurve("", typeof(Animator), pc.Muscle);
                     // Single key at t=0 — AnimationCurve.Constant works but leaves a redundant
                     // second key at t=1; use a single-key curve instead to keep clips minimal.
                     var curve = new AnimationCurve(new Keyframe(0f, pc.Value));
                     AnimationUtility.SetEditorCurve(clip, binding, curve);
+                }
+
+                if (invalidMuscles.Count > 0)
+                {
+                    Debug.LogError($"[PoseClipGenerator] Pose '{pose.Name}' has {invalidMuscles.Count} invalid muscle name(s): {string.Join(", ", invalidMuscles.Select(m => $"\"{m}\""))} — skipping save of this clip to avoid partial output.");
+                    continue; // don't write a partial clip; move on to the next pose
                 }
 
                 if (isNew)
@@ -156,6 +166,17 @@ namespace Snowdrift.Editor
         [MenuItem("Snowdrift/Build Rider Controller")]
         public static void BuildRiderController()
         {
+            // Drift guard: int constants above MUST match Snowdrift.Core.RiderPose enum values.
+            // Snowdrift.Editor.asmdef references Snowdrift.Core, so this assert compiles against
+            // the live enum — any reorder will be caught at tool invocation time, not silently.
+            Debug.Assert(
+                (int)Snowdrift.Core.RiderPose.Ride  == 0 &&
+                (int)Snowdrift.Core.RiderPose.Air   == 1 &&
+                (int)Snowdrift.Core.RiderPose.GrabL == 2 &&
+                (int)Snowdrift.Core.RiderPose.GrabR == 3 &&
+                (int)Snowdrift.Core.RiderPose.Brace == 4,
+                "RiderPose enum order drifted from controller Pose int mapping");
+
             EnsureDir(AnimDir);
 
             // ── Load generated pose clips ──────────────────────────────────────
@@ -398,11 +419,10 @@ namespace Snowdrift.Editor
                 {
                     if (!(asset is AnimationClip clip)) continue;
                     string lower = clip.name.ToLowerInvariant();
+                    // Require ALL substrings to match (case-insensitive).
+                    // e.g. FindMixamoClip("landing","hard") only matches a clip
+                    // whose name contains both "landing" AND "hard".
                     bool matched = substrings.All(s => lower.Contains(s.ToLowerInvariant()));
-                    // For multi-substring, require ALL to match; for single, just the one
-                    // (caller passes "landing","hard" meaning either should match — use Any instead)
-                    if (substrings.Length > 1)
-                        matched = substrings.Any(s => lower.Contains(s.ToLowerInvariant()));
                     if (matched)
                         return clip;
                 }

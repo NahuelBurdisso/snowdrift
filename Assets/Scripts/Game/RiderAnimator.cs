@@ -55,6 +55,8 @@ namespace Snowdrift.Game
 
         void LateUpdate()
         {
+            // Animator must be writing the pose each frame or the additive lean would compound.
+            if (animator == null || !animator.isActiveAndEnabled) return;
             if (spineBone == null) return;
             float target = RiderAnimLogic.LeanAngle(board.SteerInput, maxLeanDeg);
             _lean = Mathf.Lerp(_lean, target, 1f - Mathf.Exp(-leanSmooth * Time.deltaTime));

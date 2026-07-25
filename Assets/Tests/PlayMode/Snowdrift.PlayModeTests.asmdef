@@ -1,0 +1,13 @@
+{
+  "name": "Snowdrift.PlayModeTests",
+  "references": [
+    "Snowdrift.Core",
+    "Snowdrift.Game",
+    "UnityEngine.TestRunner",
+    "UnityEditor.TestRunner"
+  ],
+  "includePlatforms": [],
+  "precompiledReferences": ["nunit.framework.dll"],
+  "overrideReferences": true,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"]
+}

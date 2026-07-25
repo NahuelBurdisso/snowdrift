@@ -6,8 +6,8 @@ Third-party assets used in Snowdrift. CC0 assets require no attribution; given a
 
 | Asset | Author | License | Source |
 |---|---|---|---|
-| Holiday Kit (pines, props) — *pending download* | Kenney | CC0 1.0 | https://kenney.nl/assets/holiday-kit |
-| Nature Kit (rocks) — *pending download* | Kenney | CC0 1.0 | https://kenney.nl/assets/nature-kit |
+| Holiday Kit — tree-snow-a.fbx, tree-snow-b.fbx, tree-snow-c.fbx (pine tree obstacle + border props) | Kenney | CC0 1.0 | https://kenney.nl/assets/holiday-kit |
+| Nature Kit — rock_largeA.fbx, rock_largeB.fbx, rock_largeC.fbx (rock obstacle props) | Kenney | CC0 1.0 | https://kenney.nl/assets/nature-kit |
 | Animated Human (rigged humanoid character) | Quaternius | CC0 1.0 | https://quaternius.com |
 
 ## Mixamo animations (Adobe license — NOT CC0)

@@ -11,6 +11,12 @@ namespace Snowdrift.Game
         public int seed = 42;
         public float shiftEvery = 2000f;
 
+        // ── Prop prefabs (optional — null arrays fall back to primitive obstacle path) ──
+        // Assigned by EnvironmentSetup.WireScene() or ProjectSetup.BuildScene().
+        public GameObject[] treePrefabs;
+        public GameObject[] rockPrefabs;
+        public GameObject   borderTreePrefab;
+
         public DistanceTracker Distance { get; } = new();
         public SlopeField Field { get; private set; }
 
@@ -69,6 +75,8 @@ namespace Snowdrift.Game
             var chunk = go.AddComponent<TerrainChunk>();
             int difficulty = Mathf.FloorToInt(index * TerrainChunk.Length / 500f);
             chunk.Build(Field, index * TerrainChunk.Length, _ozOff, _oyOff, snowMat, SpawnFeature, difficulty);
+            // Spawn decoration-only border trees parented to this chunk (destroyed with it)
+            SpawnBorderTrees(go.transform, index);
             _chunks.Add(index, chunk);
         }
 
@@ -101,20 +109,81 @@ namespace Snowdrift.Game
                 if (lipMat != null)
                     lip.GetComponent<MeshRenderer>().sharedMaterial = lipMat;
             }
+            else if (kind == 0)
+            {
+                // Rock obstacle — use prop prefab if available, else primitive fallback
+                var pool = rockPrefabs;
+                if (pool != null && pool.Length > 0 && pool[0] != null)
+                {
+                    int idx = System.Math.Abs(Mathf.RoundToInt(slopeZ * 7)) % pool.Length;
+                    go = Object.Instantiate(pool[idx], pos + Vector3.up * 0.5f, Quaternion.identity);
+                    go.name = "rock_prop";
+                }
+                else
+                {
+                    go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                    go.name = "rock";
+                    go.transform.localScale = new Vector3(2.5f, 1.8f, 2.5f);
+                    go.transform.position = pos + Vector3.up * 0.5f;
+                    go.GetComponent<MeshRenderer>().sharedMaterial = rockMat;
+                    go.tag = "Obstacle";
+                    var trig = go.AddComponent<SphereCollider>();
+                    trig.isTrigger = true; trig.radius = 2.5f;
+                    go.AddComponent<NearMissZone>();
+                }
+            }
             else
             {
-                go = GameObject.CreatePrimitive(kind == 0 ? PrimitiveType.Sphere : PrimitiveType.Capsule);
-                go.name = kind == 0 ? "rock" : "tree";
-                go.transform.localScale = kind == 0 ? new Vector3(2.5f, 1.8f, 2.5f) : new Vector3(1.2f, 4f, 1.2f);
-                go.transform.position = pos + Vector3.up * (kind == 0 ? 0.5f : 2f);
-                go.GetComponent<MeshRenderer>().sharedMaterial = rockMat;
-                go.tag = "Obstacle";
-                // Near-miss trigger shell + detector
-                var trig = go.AddComponent<SphereCollider>();
-                trig.isTrigger = true; trig.radius = 2.5f;
-                go.AddComponent<NearMissZone>();
+                // Tree obstacle (kind == 1) — use prop prefab if available, else primitive fallback
+                var pool = treePrefabs;
+                if (pool != null && pool.Length > 0 && pool[0] != null)
+                {
+                    int idx = System.Math.Abs(Mathf.RoundToInt(slopeZ * 13)) % pool.Length;
+                    go = Object.Instantiate(pool[idx], pos + Vector3.up * 0f, Quaternion.identity);
+                    go.name = "tree_prop";
+                }
+                else
+                {
+                    go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+                    go.name = "tree";
+                    go.transform.localScale = new Vector3(1.2f, 4f, 1.2f);
+                    go.transform.position = pos + Vector3.up * 2f;
+                    go.GetComponent<MeshRenderer>().sharedMaterial = rockMat;
+                    go.tag = "Obstacle";
+                    var trig = go.AddComponent<SphereCollider>();
+                    trig.isTrigger = true; trig.radius = 2.5f;
+                    go.AddComponent<NearMissZone>();
+                }
             }
             return go;
+        }
+
+        // Spawn non-collider border pines along the corridor edges of a chunk.
+        // parentTransform: the chunk's Transform so border pines are destroyed with the chunk.
+        void SpawnBorderTrees(Transform parentTransform, int chunkIndex)
+        {
+            if (borderTreePrefab == null) return;
+
+            float slopeZStart = chunkIndex * TerrainChunk.Length;
+            var rng = new System.Random(chunkIndex * 31337); // deterministic per chunk, independent of obstacle RNG
+            int count = 4 + rng.Next(3); // 4–6 trees
+
+            for (int i = 0; i < count; i++)
+            {
+                float slopeZ = slopeZStart + (float)rng.NextDouble() * TerrainChunk.Length;
+                // x: corridorEdge + 8..20m on alternating sides
+                float offsetX = 8f + (float)rng.NextDouble() * 12f; // 8..20
+                float side    = rng.Next(2) == 0 ? -1f : 1f;
+                float x       = side * (TerrainChunk.Width / 2f + offsetX);
+
+                float worldY  = Field.Height(x, slopeZ) - _oyOff;
+                float worldZ  = slopeZ - _ozOff;
+
+                var pos = new Vector3(x, worldY, worldZ);
+                var go  = Object.Instantiate(borderTreePrefab, pos, Quaternion.identity);
+                go.name = "border_pine";
+                go.transform.SetParent(parentTransform, true);
+            }
         }
 
         void OriginShift()

@@ -654,6 +654,9 @@ namespace Snowdrift.Editor
                 Debug.LogWarning("[ProjectSetup] Rider prefab missing — run Snowdrift/Build Rider Prefab after Build Scene");
             }
 
+            // ── Wire environment prop prefabs into TerrainStream (idempotent; no-op if prefabs missing) ──
+            EnvironmentSetup.WireScene();
+
             Debug.Log("[ProjectSetup] Main.unity built and saved.");
         }
 

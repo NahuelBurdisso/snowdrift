@@ -1,6 +1,0 @@
-﻿<Solution>
-  <Project Path="Snowdrift.Game.csproj" />
-  <Project Path="Snowdrift.Core.csproj" />
-  <Project Path="Snowdrift.Tests.csproj" />
-  <Project Path="Snowdrift.Editor.csproj" />
-</Solution>

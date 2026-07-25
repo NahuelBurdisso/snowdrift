@@ -147,7 +147,10 @@ namespace Snowdrift.Game
             if (_boardVisual != null)
             {
                 _boardVisual.SetParent(null, true);
-                _boardRb = _boardVisual.gameObject.AddComponent<Rigidbody>();
+                // Belt-and-braces guard: DestroyImmediate any leftover Rigidbody before adding
+                // (can happen if crash+restart+re-crash hit same frame and Destroy was still deferred).
+                if (!_boardVisual.TryGetComponent(out _boardRb))
+                    _boardRb = _boardVisual.gameObject.AddComponent<Rigidbody>();
                 _boardRb.linearVelocity = crashVel * 1.1f; // board shoots ahead
                 _boardRb.AddTorque(Random.insideUnitSphere * 10f, ForceMode.VelocityChange);
             }
@@ -160,6 +163,7 @@ namespace Snowdrift.Game
         void HandleRestart()
         {
             StopAllCoroutines();
+            // DoRespawn handles both ragdoll and fallback paths; it guards _crashed itself.
             if (_crashed)
                 DoRespawn(skipSpawnCall: true);
         }
@@ -179,6 +183,7 @@ namespace Snowdrift.Game
 
             if (hasRagdoll && _riderVisual != null)
             {
+                // ── Ragdoll cleanup ──────────────────────────────────────────
                 // Kinematic again
                 foreach (var rb in _ragdollBodies)
                     rb.isKinematic = true;
@@ -200,13 +205,35 @@ namespace Snowdrift.Game
                     _animator.Rebind();
                 }
             }
+            else if (_tumbleBody != null)
+            {
+                // ── Fallback tumble cleanup (I-2) ────────────────────────────
+                // Restore collision with board before destroying the collider
+                if (_boardCol != null && _tumbleCol != null)
+                    Physics.IgnoreCollision(_boardCol, _tumbleCol, false);
 
-            // Reattach board
+                DestroyImmediate(_tumbleCol);
+                DestroyImmediate(_tumbleBody);
+                _tumbleCol  = null;
+                _tumbleBody = null;
+
+                // Reparent visual back to its original parent/pose
+                if (visual != null)
+                {
+                    visual.SetParent(_visualOriginalParent, false);
+                    visual.localPosition = _visualOriginalLocalPos;
+                    visual.localRotation = _visualOriginalLocalRot;
+                }
+
+                _visualOriginalParent = null;
+            }
+
+            // ── Reattach board (ragdoll path only — board not detached in fallback) ──
             if (_boardVisual != null)
             {
                 if (_boardRb != null)
                 {
-                    Destroy(_boardRb);
+                    DestroyImmediate(_boardRb); // immediate: no deferred-Destroy window for a re-crash
                     _boardRb = null;
                 }
                 _boardVisual.SetParent(_visualRoot, false);
@@ -216,6 +243,13 @@ namespace Snowdrift.Game
 
             if (!skipSpawnCall)
             {
+                // M-1: null guard — terrain may be unassigned in test/offline scenes
+                if (terrain == null)
+                {
+                    Debug.LogWarning("[CrashHandler] terrain is null — skipping CorridorSpawnNear, respawning at current position.");
+                    board.Respawn(board.transform.position, board.transform.rotation);
+                    return;
+                }
                 var (pos, rot) = terrain.CorridorSpawnNear(board.transform.position);
                 board.Respawn(pos, rot);
             }
@@ -238,9 +272,14 @@ namespace Snowdrift.Game
         {
             // Ragdoll bones are children of RiderVisual which is under Visual → under Player root.
             // TerrainStream.OriginShift moves board.transform (the player root), so bones are
-            // auto-shifted. Only the detached board needs manual shifting.
+            // auto-shifted. Only the detached board and fallback tumble body need manual shifting.
             if (_boardRb != null)
                 _boardRb.position += delta;
+
+            // I-3: fallback tumble visual is detached from the player root, so shift it too.
+            // (TerrainStream currently suppresses OriginShift while crashed, but guard for robustness.)
+            if (_tumbleBody != null)
+                _tumbleBody.position += delta;
         }
 
         // ── Fallback tumble (no ragdoll prefab) ────────────────────────────────
@@ -249,6 +288,11 @@ namespace Snowdrift.Game
         CapsuleCollider _tumbleCol;
         Collider _boardCol;
 
+        // Cached visual parent/pose so DoRespawn can restore after fallback tumble
+        Transform  _visualOriginalParent;
+        Vector3    _visualOriginalLocalPos;
+        Quaternion _visualOriginalLocalRot;
+
         void FallbackTumble(Vector3 crashVel)
         {
             if (_tumbleBody != null) return;
@@ -256,6 +300,11 @@ namespace Snowdrift.Game
 
             if (visual != null)
             {
+                // Cache before detach so DoRespawn can restore (covers HandleRestart path too)
+                _visualOriginalParent   = visual.parent;
+                _visualOriginalLocalPos = visual.localPosition;
+                _visualOriginalLocalRot = visual.localRotation;
+
                 visual.SetParent(null);
                 _tumbleBody = visual.gameObject.AddComponent<Rigidbody>();
                 _tumbleBody.linearVelocity = crashVel;
@@ -271,20 +320,10 @@ namespace Snowdrift.Game
         IEnumerator FallbackRespawnAfterDelay()
         {
             yield return new WaitForSeconds(tuning.respawnDelay);
+            // If HandleRestart already called DoRespawn, _tumbleBody was DestroyImmediate'd — bail out.
             if (_tumbleBody == null) yield break;
-            Destroy(_tumbleCol);
-            Destroy(_tumbleBody);
-            _tumbleCol = null;
-            _tumbleBody = null;
-            _crashed = false;
-            if (visual != null)
-            {
-                visual.SetParent(board.transform, false);
-                visual.localPosition = Vector3.zero;
-                visual.localRotation = Quaternion.identity;
-            }
-            var (pos, rot) = terrain.CorridorSpawnNear(board.transform.position);
-            board.Respawn(pos, rot);
+            // Delegate all cleanup to DoRespawn so there is exactly one cleanup path.
+            DoRespawn(skipSpawnCall: false);
         }
     }
 }

@@ -16,7 +16,7 @@ namespace Snowdrift.Game
 
         Rigidbody _rb; GroundSensor _sensor;
         float _lean, _steerInput, _flipInput;
-        bool _tuck, _drift, _grabL, _grabR, _chargeHeld;
+        bool _tuck, _drift, _grabL, _grabR, _chargeHeld, _jumpRequest;
         float _charge, _coyote, _buffer, _airTime;
         bool _airborne;
         public bool Airborne => _airborne;
@@ -60,7 +60,7 @@ namespace Snowdrift.Game
             {
                 _chargeHeld = false;
                 if (_airborne) _buffer = tuning.jumpBuffer; // buffered = min pop on touchdown
-                else TryPop(_charge);
+                else _jumpRequest = true; // consumed in FixedUpdate; survives press+release within one fixed step
             }
             if (k.rKey.wasPressedThisFrame) GameState.I.Restart();
             if (k.escapeKey.wasPressedThisFrame) GameState.I.SetPaused(!GameState.I.Paused);
@@ -91,6 +91,9 @@ namespace Snowdrift.Game
             var n = _sensor.SmoothedNormal;
             var vel = _rb.linearVelocity;
 
+            // Consume tap/release request BEFORE charge reset — _chargeHeld is already
+            // false on release, so resetting first would wipe the accumulated charge.
+            if (_jumpRequest) { _jumpRequest = false; TryPop(_charge); _charge = 0f; return; }
             // Charge while grounded and Space held
             _charge = _chargeHeld ? Mathf.Min(tuning.chargeTime, _charge + dt) : 0f;
 
@@ -103,7 +106,10 @@ namespace Snowdrift.Game
 
             // Grip (drift lowers it), then drag
             float grip = _drift ? tuning.driftGrip : tuning.carveGrip;
-            var fwdOnPlane = Vector3.ProjectOnPlane(transform.forward, n).normalized;
+            var fwdProjected = Vector3.ProjectOnPlane(transform.forward, n);
+            // Guard: if board forward is nearly parallel to surface normal the projection
+            // collapses to zero — fall back to world forward to avoid damping all velocity.
+            var fwdOnPlane = fwdProjected.sqrMagnitude >= 1e-4f ? fwdProjected.normalized : transform.forward;
             vel = CarveMath.ApplyGrip(vel, fwdOnPlane, grip, tuning.gripRedirect, dt);
             vel = CarveMath.ApplyDrag(vel, _tuck ? tuning.tuckSpeedCap : tuning.softSpeedCap, tuning.dragK, dt);
 
@@ -214,7 +220,7 @@ namespace Snowdrift.Game
             transform.SetPositionAndRotation(pos, rot);
             _rb.linearVelocity = Vector3.zero;
             _lean = 0f; _yawVel = 0f; _pitchVel = 0f;
-            _charge = 0f; _buffer = 0f; _coyote = 0f; _chargeHeld = false;
+            _charge = 0f; _buffer = 0f; _coyote = 0f; _chargeHeld = false; _jumpRequest = false;
             _tuck = false; _drift = false; _grabL = false; _grabR = false; _airTime = 0f; NearLanding = false;
             OnAirborneChanged?.Invoke(false);
         }

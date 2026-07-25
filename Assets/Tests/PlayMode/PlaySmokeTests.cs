@@ -171,6 +171,60 @@ namespace Snowdrift.PlayModeTests
 
         [UnityTest]
         [Timeout(120000)]
+        public IEnumerator Smoke_PauseUnpause_TimeScaleAndMovement()
+        {
+            yield return LoadMainScene();
+
+            var board = FindBoard();
+            Assert.IsNotNull(board, "BoardController not found");
+
+            // Let board build up some speed before pausing
+            yield return new WaitForSeconds(2f);
+
+            Assert.IsFalse(board.Crashed, "Board crashed unexpectedly before pause test");
+
+            // ── Pause ──
+            GameState.I.SetPaused(true);
+            Assert.IsTrue(GameState.I.Paused, "GameState.Paused should be true after SetPaused(true)");
+            Assert.AreEqual(0f, Time.timeScale, 1e-4f, "Time.timeScale should be 0 while paused");
+
+            // Wait a wall-clock moment; board must not move while paused
+            // WaitForSecondsRealtime is unaffected by timeScale
+            yield return new WaitForSecondsRealtime(0.5f);
+
+            Vector3 posWhilePaused = board.transform.position;
+
+            // ── Unpause ──
+            GameState.I.SetPaused(false);
+            Assert.IsFalse(GameState.I.Paused, "GameState.Paused should be false after SetPaused(false)");
+            Assert.AreEqual(1f, Time.timeScale, 1e-4f, "Time.timeScale should be 1 after unpause");
+
+            // Let board run again and verify it moves (proves physics resumed)
+            yield return new WaitForSeconds(2f);
+
+            Assert.IsFalse(board.Crashed, "Board crashed after unpause");
+
+            float speed = board.Velocity.magnitude;
+            float dist  = Vector3.Distance(board.transform.position, posWhilePaused);
+            Assert.IsTrue(
+                speed > 1f || dist > 1f,
+                $"Board does not appear to be moving after unpause: speed={speed:F2} dist={dist:F2}");
+
+            // Velocity must be finite
+            Assert.IsTrue(
+                float.IsFinite(board.Velocity.x) &&
+                float.IsFinite(board.Velocity.y) &&
+                float.IsFinite(board.Velocity.z),
+                $"Board velocity is not finite after unpause: {board.Velocity}");
+
+            // Clean up: restore timeScale in case teardown relies on it
+            GameState.I.SetPaused(false);
+        }
+
+        // ── Test 4 ─────────────────────────────────────────────────────────────
+
+        [UnityTest]
+        [Timeout(120000)]
         public IEnumerator Smoke_RestartMidRun_Clean()
         {
             yield return LoadMainScene();

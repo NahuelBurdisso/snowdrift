@@ -34,4 +34,18 @@ public class ComboLogicTests
         c.AddPassive(12.5f); c.AddPassive(12.5f);
         Assert.AreEqual(25, c.TotalScore);
     }
+
+    // Reset() must clear the fractional passive accumulator so it is not carried
+    // into the next run. AddPassive(0.5f) twice across a Reset() should contribute
+    // 0 total (each 0.5 is sub-whole and Reset zeroes the accumulator between them).
+    [Test]
+    public void Reset_ClearsFractionalPassiveAccumulator()
+    {
+        var c = new ComboLogic();
+        c.AddPassive(0.5f);  // _passive = 0.5, no whole point banked
+        c.Reset();           // must zero _passive
+        c.AddPassive(0.5f);  // _passive = 0.5 again, still no whole point
+        Assert.AreEqual(0, c.TotalScore,
+            "Fractional passive amount leaked across Reset()");
+    }
 }

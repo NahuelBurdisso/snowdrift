@@ -54,4 +54,18 @@ public class CarveMathTests
         float result = CarveMath.StepLean(current: 1f, target: -1f, attack: 12f, release: 5f, dt: 0.05f);
         Assert.AreEqual(0.4f, result, 1e-4f);
     }
+
+    // When boardForward is Vector3.zero, ApplyGrip treats the entire velocity as
+    // "sideways" and damps it all. This documents the current behaviour: result must
+    // not contain NaN and must have magnitude <= original.
+    [Test]
+    public void Grip_ZeroBoardForward_NoNaN_SpeedNotIncreased()
+    {
+        var vel = new Vector3(3f, 0f, 7f);
+        var result = CarveMath.ApplyGrip(vel, Vector3.zero, grip: 10f, redirect: 0.9f, dt: 0.02f);
+        Assert.IsFalse(float.IsNaN(result.x) || float.IsNaN(result.y) || float.IsNaN(result.z),
+            "Result contains NaN when boardForward is zero");
+        Assert.LessOrEqual(result.magnitude, vel.magnitude + 1e-4f,
+            "Speed increased when boardForward is zero");
+    }
 }

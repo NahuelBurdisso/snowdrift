@@ -81,4 +81,22 @@ public class TrickTrackerTests
         var r = t.EndAir();
         Assert.AreEqual(0, r.Spin180s);
     }
+
+    // A full negative-yaw spin (-360°) should score identically to a positive one.
+    [Test]
+    public void NegativeSpin360_ScoresSameAsPositive()
+    {
+        var pos = new TrickTracker();
+        pos.BeginAir();
+        pos.AddRotation(yawDeltaDeg: +360f, pitchDeltaDeg: 0f);
+        var posResult = pos.EndAir();
+
+        var neg = new TrickTracker();
+        neg.BeginAir();
+        neg.AddRotation(yawDeltaDeg: -360f, pitchDeltaDeg: 0f);
+        var negResult = neg.EndAir();
+
+        Assert.AreEqual(posResult.Spin180s,  negResult.Spin180s,  "Spin180s differ for +/-360");
+        Assert.AreEqual(posResult.SpinScore, negResult.SpinScore, "SpinScore differs for +/-360");
+    }
 }

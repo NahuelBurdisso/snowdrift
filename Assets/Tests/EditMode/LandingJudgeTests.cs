@@ -15,4 +15,15 @@ public class LandingJudgeTests
     [Test] public void WorstAxisWins() => Assert.AreEqual(LandingGrade.Sloppy, Judge(10f, 40f));
     [Test] public void Yaw90_MaxDeviation_Crash() => Assert.AreEqual(LandingGrade.Crash, Judge(90f, 0f));
     [Test] public void Flip350_Clean() => Assert.AreEqual(LandingGrade.Clean, Judge(0f, 350f)); // 10° off full rotation
+
+    // Boundary: exactly cleanDeg (25°). Implementation uses <= so this must be Clean.
+    [Test]
+    public void ExactlyCleanDeg_IsClean()
+    {
+        // worst == cleanDeg == 25f; condition is (worst <= cleanDeg) → Clean
+        Assert.AreEqual(LandingGrade.Clean, Judge(25f, 0f),
+            "Yaw exactly at cleanDeg boundary should be Clean (<=)");
+        Assert.AreEqual(LandingGrade.Clean, Judge(0f, 25f),
+            "Flip exactly at cleanDeg boundary should be Clean (<=)");
+    }
 }

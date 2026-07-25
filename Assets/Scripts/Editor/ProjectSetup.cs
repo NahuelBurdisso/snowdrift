@@ -276,15 +276,30 @@ namespace Snowdrift.Editor
             var capCol = capsuleVisualGo.GetComponent<CapsuleCollider>();
             if (capCol != null) Object.DestroyImmediate(capCol);
 
-            // Board (flattened cube)
-            var boardVisualGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            boardVisualGo.name = "BoardMesh";
+            // Board visual — generated snowboard mesh (Board.mesh + Snowboard.mat)
+            // Falls back to placeholder cube if the asset is missing.
+            var boardVisualGo = new GameObject("BoardVisual");
             boardVisualGo.transform.SetParent(visualGo.transform, false);
             boardVisualGo.transform.localPosition = new Vector3(0f, 0.05f, 0f);
-            boardVisualGo.transform.localScale = new Vector3(0.4f, 0.08f, 1.4f);
-            boardVisualGo.GetComponent<MeshRenderer>().sharedMaterial = snowMat;
-            var boardCol = boardVisualGo.GetComponent<BoxCollider>();
-            if (boardCol != null) Object.DestroyImmediate(boardCol);
+            boardVisualGo.transform.localScale    = new Vector3(1f, 1f, 1f); // Board.mesh is authored to scale
+            var boardMeshFilter   = boardVisualGo.AddComponent<MeshFilter>();
+            var boardMeshRenderer = boardVisualGo.AddComponent<MeshRenderer>();
+            var boardMesh = AssetDatabase.LoadAssetAtPath<Mesh>("Assets/Art/Board.mesh");
+            if (boardMesh != null)
+            {
+                boardMeshFilter.sharedMesh = boardMesh;
+                var snowboardMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Snowboard.mat");
+                boardMeshRenderer.sharedMaterial = snowboardMat != null ? snowboardMat : snowMat;
+                Debug.Log("[ProjectSetup] BoardVisual: using generated Board.mesh + Snowboard.mat.");
+            }
+            else
+            {
+                Debug.LogWarning("[ProjectSetup] Assets/Art/Board.mesh not found — falling back to placeholder cube for BoardVisual.");
+                boardMeshFilter.sharedMesh = Resources.GetBuiltinResource<Mesh>("Cube.fbx");
+                boardMeshRenderer.sharedMaterial = snowMat;
+                boardVisualGo.transform.localScale = new Vector3(0.4f, 0.08f, 1.4f);
+            }
+            // No collider on BoardVisual — physics collider lives on the player root.
 
             // GroundSensor
             var groundSensor = playerGo.AddComponent<GroundSensor>();

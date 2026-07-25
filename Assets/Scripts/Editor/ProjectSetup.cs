@@ -145,20 +145,21 @@ namespace Snowdrift.Editor
         static void Step4_Materials()
         {
             EnsureDir("Assets/Materials");
-            CreateUrpMat("Assets/Materials/Snow.mat",   new Color(0.949f, 0.961f, 0.969f)); // #F2F5F7
-            CreateUrpMat("Assets/Materials/Rock.mat",   new Color(0.357f, 0.404f, 0.439f)); // #5B6770
-            CreateUrpMat("Assets/Materials/Kicker.mat", new Color(0.910f, 0.706f, 0.298f)); // #E8B44C
-            CreateUrpMat("Assets/Materials/Player.mat", new Color(0.851f, 0.314f, 0.251f)); // #D95040
+            CreateUrpMat("Assets/Materials/Snow.mat",      new Color(0.949f, 0.961f, 0.969f)); // #F2F5F7
+            CreateUrpMat("Assets/Materials/Rock.mat",      new Color(0.357f, 0.404f, 0.439f)); // #5B6770
+            CreateUrpMat("Assets/Materials/Kicker.mat",    new Color(0.950f, 0.960f, 0.980f), 0.15f); // snow-white
+            CreateUrpMat("Assets/Materials/KickerLip.mat", new Color(0.250f, 0.280f, 0.340f), 0.05f); // dark accent
+            CreateUrpMat("Assets/Materials/Player.mat",    new Color(0.851f, 0.314f, 0.251f)); // #D95040
         }
 
-        static void CreateUrpMat(string path, Color color)
+        static void CreateUrpMat(string path, Color color, float smoothness = 0.1f)
         {
             if (AssetDatabase.LoadAssetAtPath<Material>(path) != null) return;
             var shader = Shader.Find("Universal Render Pipeline/Lit");
             if (shader == null) shader = Shader.Find("Standard");
             var mat = new Material(shader);
             mat.color = color;
-            mat.SetFloat("_Smoothness", 0.1f);
+            mat.SetFloat("_Smoothness", smoothness);
             AssetDatabase.CreateAsset(mat, path);
             Debug.Log($"[ProjectSetup] Created material {path}");
         }
@@ -178,10 +179,11 @@ namespace Snowdrift.Editor
 
             // Load asset refs
             var tuningAsset = AssetDatabase.LoadAssetAtPath<BoardTuning>("Assets/Settings/BoardTuning.asset");
-            var snowMat   = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Snow.mat");
-            var rockMat   = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Rock.mat");
-            var kickerMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Kicker.mat");
-            var playerMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Player.mat");
+            var snowMat      = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Snow.mat");
+            var rockMat      = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Rock.mat");
+            var kickerMat    = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Kicker.mat");
+            var kickerLipMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/KickerLip.mat");
+            var playerMat    = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Player.mat");
 
             // Audio clips (optional)
             var windClip  = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/wind.wav");
@@ -463,6 +465,7 @@ namespace Snowdrift.Editor
             terrainStream.snowMat = snowMat;
             terrainStream.rockMat = rockMat;
             terrainStream.kickerMat = kickerMat;
+            terrainStream.lipMat = kickerLipMat;
 
             // Wire terrain refs now that it exists
             crashHandler.terrain = terrainStream;

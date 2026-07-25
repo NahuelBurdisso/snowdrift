@@ -7,7 +7,7 @@ namespace Snowdrift.Game
     public class TerrainStream : MonoBehaviour
     {
         public BoardController board;
-        public Material snowMat, rockMat, kickerMat;
+        public Material snowMat, rockMat, kickerMat, lipMat;
         public int seed = 42;
         public float shiftEvery = 2000f;
 
@@ -84,6 +84,22 @@ namespace Snowdrift.Game
                 go.transform.rotation = Quaternion.Euler(-20f, 0f, 0f); // ramp facing downhill
                 go.GetComponent<MeshRenderer>().sharedMaterial = kickerMat;
                 go.layer = LayerMask.NameToLayer("Ground"); // rideable
+
+                // Lip accent — visual only, no collider
+                var lip = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                lip.name = "kicker_lip";
+                // Destroy the BoxCollider so it contributes no physics
+                var lipCol = lip.GetComponent<BoxCollider>();
+                if (lipCol != null) Object.Destroy(lipCol);
+                // 0.1m tall strip spanning full kicker width, along top-front edge (local space).
+                // Parent scale is (6, 1.5, 8) so local coords map directly to cube mesh extents (-0.5..+0.5).
+                lip.transform.SetParent(go.transform, false);
+                lip.transform.localPosition = new Vector3(0f, 0.5f, -0.5f); // top-front edge of parent cube mesh
+                lip.transform.localRotation = Quaternion.identity;
+                // localScale is multiplied by parent scale (6,1.5,8): x=1→6m wide, y=0.067→0.1m tall, z=0.003→0.025m thin
+                lip.transform.localScale = new Vector3(1f, 0.067f, 0.003f);
+                if (lipMat != null)
+                    lip.GetComponent<MeshRenderer>().sharedMaterial = lipMat;
             }
             else
             {

@@ -192,16 +192,15 @@ namespace Snowdrift.Editor
             var lightGo = new GameObject("Directional Light");
             var light = lightGo.AddComponent<Light>();
             light.type = LightType.Directional;
-            light.color = new Color(1f, 0.95f, 0.8f); // warm
+            light.color = new Color(1.0f, 0.96f, 0.88f); // warm golden-white
             light.intensity = 1.2f;
-            lightGo.transform.rotation = Quaternion.Euler(25f, -30f, 0f); // low angle
+            lightGo.transform.rotation = Quaternion.Euler(50f, -30f, 0f); // steeper winter sun
 
             // ── Main Camera ──
             var cameraGo = new GameObject("Main Camera");
             cameraGo.tag = "MainCamera";
             var camera = cameraGo.AddComponent<Camera>();
-            camera.clearFlags = CameraClearFlags.SolidColor;
-            camera.backgroundColor = new Color(0.749f, 0.890f, 0.941f); // #BFE3F0
+            camera.clearFlags = CameraClearFlags.Skybox; // use gradient sky
             camera.farClipPlane = 600f;
             cameraGo.AddComponent<AudioListener>();
             // CinemachineBrain required for Cinemachine to drive this camera
@@ -209,6 +208,35 @@ namespace Snowdrift.Editor
             // ImpulseListener on the camera GO
             var impulseListener = cameraGo.AddComponent<CinemachineImpulseListener>();
             impulseListener.ChannelMask = 1;
+
+            // ── Ambient snow (local space — floats with camera for floating-origin safety) ──
+            var ambientSnowGo = new GameObject("AmbientSnow");
+            ambientSnowGo.transform.SetParent(cameraGo.transform, false);
+            ambientSnowGo.transform.localPosition = Vector3.zero;
+            var snowPs = ambientSnowGo.AddComponent<ParticleSystem>();
+            {
+                var main = snowPs.main;
+                main.loop = true;
+                main.simulationSpace = ParticleSystemSimulationSpace.Local; // CRITICAL: floating-origin safe
+                main.maxParticles = 200;
+                main.startLifetime = new ParticleSystem.MinMaxCurve(3.5f, 5.0f);
+                main.startSpeed = 0f; // driven by velocityOverLifetime
+                main.startSize = 0.05f;
+                main.startColor = Color.white;
+                var em = snowPs.emission;
+                em.rateOverTime = 40f; // ~200 particles / ~5s lifetime = steady 40/s
+                var shape = snowPs.shape;
+                shape.enabled = true;
+                shape.shapeType = ParticleSystemShapeType.Box;
+                shape.scale = new Vector3(30f, 20f, 30f);
+                var vel = snowPs.velocityOverLifetime;
+                vel.enabled = true;
+                vel.space = ParticleSystemSimulationSpace.Local;
+                // Constant downward drift in local space
+                vel.x = new ParticleSystem.MinMaxCurve(0f);
+                vel.y = new ParticleSystem.MinMaxCurve(-1.5f);
+                vel.z = new ParticleSystem.MinMaxCurve(0f);
+            }
 
             // ── GameState ──
             var gameStateGo = new GameObject("GameState");
@@ -539,7 +567,51 @@ namespace Snowdrift.Editor
             hud.pauseText = pauseTxt;
             hud.speedBar = speedBarImg;
 
+            // ── Skybox material ──
+            const string skyMatPath = "Assets/Materials/SkyGradient.mat";
+            EnsureDir("Assets/Materials");
+            var skyShader = Shader.Find("Snowdrift/GradientSky");
+            Material skyMat = AssetDatabase.LoadAssetAtPath<Material>(skyMatPath);
+            if (skyMat == null)
+            {
+                skyMat = new Material(skyShader != null ? skyShader : Shader.Find("Skybox/Procedural"));
+                AssetDatabase.CreateAsset(skyMat, skyMatPath);
+                Debug.Log("[ProjectSetup] Created SkyGradient.mat");
+            }
+            else if (skyShader != null && skyMat.shader != skyShader)
+            {
+                skyMat.shader = skyShader;
+                EditorUtility.SetDirty(skyMat);
+            }
+            RenderSettings.skybox = skyMat;
+
+            // ── Fog ──
+            RenderSettings.fog = true;
+            RenderSettings.fogMode = FogMode.Linear;
+            RenderSettings.fogStartDistance = 60f;
+            RenderSettings.fogEndDistance = 220f;
+            RenderSettings.fogColor = new Color(0.95f, 0.85f, 0.80f);
+
+            // ── Ambient lighting (trilight) ──
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor     = new Color(0.55f, 0.70f, 0.90f); // sky — cool blue
+            RenderSettings.ambientEquatorColor = new Color(0.90f, 0.88f, 0.82f); // horizon — warm
+            RenderSettings.ambientGroundColor  = new Color(0.55f, 0.62f, 0.75f); // ground/shadow — cool
+
+            // ── ColorAdjustments on existing post volume profile ──
+            if (profile != null)
+            {
+                ColorAdjustments colorAdj;
+                if (!profile.TryGet<ColorAdjustments>(out colorAdj))
+                    colorAdj = profile.Add<ColorAdjustments>(true);
+                colorAdj.contrast.Override(10f);
+                colorAdj.saturation.Override(8f);
+                EditorUtility.SetDirty(profile);
+                Debug.Log("[ProjectSetup] Added ColorAdjustments (contrast +10, saturation +8) to volume profile.");
+            }
+
             // ── Add scene to build settings ──
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(scene);
             UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene, scenePath);
             AddSceneToBuildSettings(scenePath);
 

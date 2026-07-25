@@ -7,6 +7,7 @@
 *.csproj
 *.sln
 test-results.xml
+playmode-results.xml
 *.log
 .vscode/
 *.slnx

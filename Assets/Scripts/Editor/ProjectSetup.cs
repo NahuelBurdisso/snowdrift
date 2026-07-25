@@ -578,7 +578,9 @@ namespace Snowdrift.Editor
             // EventSystem
             var eventSysGo = new GameObject("EventSystem");
             eventSysGo.AddComponent<UnityEngine.EventSystems.EventSystem>();
-            eventSysGo.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+            // New Input System UI module — StandaloneInputModule throws every frame
+            // ("Input Button Submit is not setup") because legacy Input Manager is unused.
+            eventSysGo.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
 
             // ── HUD component ──
             var hud = canvasGo.AddComponent<HUD>();

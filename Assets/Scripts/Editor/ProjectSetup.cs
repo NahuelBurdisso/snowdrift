@@ -195,8 +195,15 @@ namespace Snowdrift.Editor
             var light = lightGo.AddComponent<Light>();
             light.type = LightType.Directional;
             light.color = new Color(1.0f, 0.96f, 0.88f); // warm golden-white
-            light.intensity = 1.2f;
-            lightGo.transform.rotation = Quaternion.Euler(50f, -30f, 0f); // steeper winter sun
+            // Intensity 1.0 (was 1.2): 1.2 oversaturated surfaces when ambient also contributed warmth.
+            light.intensity = 1.0f;
+            // Rotation: Euler(45, -150, 0) — sun arrives from upper-LEFT-FRONT (roughly NW in slope space).
+            // Old Euler(50, -30, 0) placed the sun behind the player when the camera looks +Z (closeup shot),
+            // so lit faces and camera forward were co-axial: rim lighting disappeared, all surfaces received
+            // full warm light with no cool-shadow contrast → flat orange wash.
+            // At yaw -150 the sun is ~120 degrees to the right of the camera forward (+Z), giving strong
+            // cross-lighting visible from every capture angle.
+            lightGo.transform.rotation = Quaternion.Euler(45f, -150f, 0f);
 
             // ── Main Camera ──
             var cameraGo = new GameObject("Main Camera");

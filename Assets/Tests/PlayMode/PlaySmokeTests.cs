@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 using Snowdrift.Game;
+using Snowdrift.Core;
 
 namespace Snowdrift.PlayModeTests
 {
@@ -42,6 +43,11 @@ namespace Snowdrift.PlayModeTests
         static CrashHandler FindCrashHandler()
         {
             return Object.FindAnyObjectByType<CrashHandler>();
+        }
+
+        static TerrainStream FindTerrainStream()
+        {
+            return Object.FindAnyObjectByType<TerrainStream>();
         }
 
         // ── Test 1 ─────────────────────────────────────────────────────────────
@@ -262,6 +268,96 @@ namespace Snowdrift.PlayModeTests
             Assert.IsTrue(
                 board.transform.position.y > -100f,
                 $"Board appears to have fallen through the world: y={board.transform.position.y:F1}");
+        }
+
+        // ── Test 5 ─────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Verifies floating-origin shift correctness:
+        ///   - Board world-z is reduced by the shift amount (lands near zero).
+        ///   - Board velocity remains finite after the warp.
+        ///   - DistanceTracker.TrueDistance is monotonically non-decreasing (not reset).
+        ///   - No unexpected console errors are emitted.
+        ///
+        /// Strategy: set TerrainStream.shiftEvery to a low value (10 m) so the shift
+        /// fires within a short run, without any reflection — shiftEvery is a public field.
+        /// </summary>
+        [UnityTest]
+        [Timeout(120000)]
+        public IEnumerator Smoke_OriginShift_BoardAndDistanceTrackerConsistent()
+        {
+            yield return LoadMainScene();
+
+            var board   = FindBoard();
+            var terrain = FindTerrainStream();
+            Assert.IsNotNull(board,   "BoardController not found");
+            Assert.IsNotNull(terrain, "TerrainStream not found");
+
+            // Let the board stabilise for one second before we arm the low threshold.
+            yield return new WaitForSeconds(1f);
+            Assert.IsFalse(board.Crashed, "Board crashed during warm-up");
+
+            // Sample distance before forcing the shift.
+            float distanceBefore = terrain.Distance.TrueDistance;
+            Assert.IsTrue(distanceBefore >= 0f, "TrueDistance should be non-negative before shift");
+
+            // Lower the shift threshold so it fires as soon as board.z > 10 m.
+            // The board should cross this in well under the test timeout.
+            terrain.shiftEvery = 10f;
+
+            // Wait until the shift fires (board.z will snap back near 0) or timeout.
+            // We poll every physics step; give up to 15 real seconds.
+            float elapsed = 0f;
+            float boardZBeforeShift = board.transform.position.z;
+            bool shiftObserved = false;
+
+            while (elapsed < 15f)
+            {
+                yield return new WaitForFixedUpdate();
+                elapsed += Time.fixedDeltaTime;
+
+                // After the origin shift, board.z must be significantly smaller than it was
+                // at the moment the threshold was armed.  A drop of > 5 m is unambiguous.
+                if (boardZBeforeShift > 5f && board.transform.position.z < boardZBeforeShift - 5f)
+                {
+                    shiftObserved = true;
+                    break;
+                }
+                // Update reference z only while board hasn't crossed the threshold yet
+                if (board.transform.position.z <= terrain.shiftEvery)
+                    boardZBeforeShift = board.transform.position.z;
+            }
+
+            Assert.IsTrue(shiftObserved,
+                $"Origin shift was not observed within 15 s (board.z={board.transform.position.z:F1}, shiftEvery={terrain.shiftEvery})");
+
+            // ── Post-shift assertions ──
+
+            // 1. Board z is reduced: must be < shiftEvery (the board lands near 0).
+            Assert.IsTrue(
+                board.transform.position.z < terrain.shiftEvery,
+                $"Board world-z not reduced after origin shift: z={board.transform.position.z:F2}");
+
+            // 2. Velocity must be finite — no NaN/Inf from the position warp.
+            Assert.IsTrue(
+                float.IsFinite(board.Velocity.x) &&
+                float.IsFinite(board.Velocity.y) &&
+                float.IsFinite(board.Velocity.z),
+                $"Board velocity is not finite after origin shift: {board.Velocity}");
+
+            // 3. DistanceTracker must be monotonically non-decreasing.
+            //    OnOriginShift() intentionally leaves TrueDistance untouched (by design),
+            //    so distance after the shift must be >= distance before.
+            float distanceAfter = terrain.Distance.TrueDistance;
+            Assert.IsTrue(
+                distanceAfter >= distanceBefore,
+                $"TrueDistance decreased across origin shift: before={distanceBefore:F2} after={distanceAfter:F2}");
+
+            // 4. Board must not have crashed during the shift.
+            Assert.IsFalse(board.Crashed, "Board crashed during or after origin shift");
+
+            // 5. No unexpected log errors during the entire test.
+            LogAssert.NoUnexpectedReceived();
         }
     }
 }

@@ -19,6 +19,7 @@ namespace Snowdrift.Game
 
         public DistanceTracker Distance { get; } = new();
         public SlopeField Field { get; private set; }
+        public float OriginZOffset => _ozOff; // slope-space z offset for external Respawn calls
 
         readonly Dictionary<int, TerrainChunk> _chunks = new();
         readonly List<int> _dead = new();
@@ -61,8 +62,8 @@ namespace Snowdrift.Game
                 float expectedY = Field.Height(board.transform.position.x, z) - _oyOff;
                 if (board.transform.position.y < expectedY - 30f)
                 {
-                    var (pos, rot) = CorridorSpawnNear(board.transform.position);
-                    board.Respawn(pos, rot);
+                    var pos = CorridorSpawnNear(board.transform.position);
+                    board.Respawn(pos, Field, _ozOff);
                 }
             }
         }
@@ -201,12 +202,13 @@ namespace Snowdrift.Game
             OnOriginShifted?.Invoke(delta); // CameraRig warps Cinemachine, GameFeel clears trail/particles
         }
 
-        public (Vector3, Quaternion) CorridorSpawnNear(Vector3 worldPos)
+        // Returns the world-space spawn position; callers use board.Respawn(pos, Field, _ozOff)
+        // so slope-aligned rotation and initial velocity are computed there.
+        public Vector3 CorridorSpawnNear(Vector3 worldPos)
         {
             float sz = worldPos.z + _ozOff + 5f;
             float x = Field.CorridorCenter(sz, TerrainChunk.Width / 2f);
-            var pos = new Vector3(x, Field.Height(x, sz) - _oyOff + 1f, sz - _ozOff);
-            return (pos, Quaternion.identity);
+            return new Vector3(x, Field.Height(x, sz) - _oyOff + 1f, sz - _ozOff);
         }
 
         void Regenerate()
@@ -215,8 +217,8 @@ namespace Snowdrift.Game
             _chunks.Clear();
             _ozOff = 0f; _oyOff = 0f; _lastZ = 0f;
             Distance.Reset();
-            var (pos, rot) = CorridorSpawnNear(Vector3.zero);
-            board.Respawn(pos, rot);
+            var pos = CorridorSpawnNear(Vector3.zero);
+            board.Respawn(pos, Field, _ozOff);
             for (int i = 0; i <= 4; i++) EnsureChunk(i);
         }
     }

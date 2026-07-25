@@ -250,8 +250,8 @@ namespace Snowdrift.Game
                     board.Respawn(board.transform.position, board.transform.rotation);
                     return;
                 }
-                var (pos, rot) = terrain.CorridorSpawnNear(board.transform.position);
-                board.Respawn(pos, rot);
+                var pos = terrain.CorridorSpawnNear(board.transform.position);
+                board.Respawn(pos, terrain.Field, terrain.OriginZOffset);
             }
         }
 

@@ -71,7 +71,9 @@ namespace Snowdrift.Game
             if (Crashed) return;
             _sensor.Sense(tuning.normalSmoothHz);
             float dt = Time.fixedDeltaTime;
-            bool groundedNow = _sensor.Grounded && !_airborne || (_sensor.Grounded && _rb.linearVelocity.y <= 0.1f);
+            // Second clause guards terrain-crest overshoots: only allow landing when vertical
+            // velocity is no longer upward (<=0f prevents premature land while still rising).
+            bool groundedNow = (_sensor.Grounded && !_airborne) || (_sensor.Grounded && _rb.linearVelocity.y <= 0f);
 
             if (_airborne && groundedNow) Land();
             else if (!_airborne && !_sensor.Grounded)
@@ -223,6 +225,40 @@ namespace Snowdrift.Game
             _charge = 0f; _buffer = 0f; _coyote = 0f; _chargeHeld = false; _jumpRequest = false;
             _tuck = false; _drift = false; _grabL = false; _grabR = false; _airTime = 0f; NearLanding = false;
             OnAirborneChanged?.Invoke(false);
+        }
+
+        /// <summary>
+        /// Slope-aware respawn: aligns board to surface normal at pos and gives a small
+        /// downhill kick so the run resumes smoothly instead of dead-stopping.
+        /// ozOff is TerrainStream._ozOff (slope-space z offset) so we can convert world z
+        /// back to slope-space for the SlopeField height query.
+        /// </summary>
+        public void Respawn(Vector3 pos, SlopeField field, float ozOff)
+        {
+            // Finite-difference gradient to get surface normal at spawn point.
+            // Uses the same field + ozOff convention as TerrainStream.
+            const float d = 0.5f;
+            float sx = pos.x;
+            float sz = pos.z + ozOff; // world z -> slope-space z
+            float hC  = field.Height(sx,     sz);
+            float hPx = field.Height(sx + d, sz);
+            float hPz = field.Height(sx,     sz + d);
+            // dH/dx and dH/dz give the tangent vectors; cross product yields the normal.
+            var tangentX = new Vector3(d,  hPx - hC, 0f).normalized;
+            var tangentZ = new Vector3(0f, hPz - hC,  d).normalized;
+            var normal   = Vector3.Cross(tangentZ, tangentX).normalized; // points away from slope surface (upward)
+            if (normal.y < 0f) normal = -normal;                        // ensure upward-facing
+
+            // Downhill direction: project world -Z (the slope runs in +Z) onto the surface plane.
+            var downhill = Vector3.ProjectOnPlane(Vector3.forward, normal).normalized;
+
+            // Build rotation: board up = normal, board forward = downhill.
+            Quaternion slopeRot = Quaternion.LookRotation(downhill, normal);
+
+            // Apply state reset then override rotation and give initial velocity.
+            Respawn(pos, slopeRot);
+            const float kSpawnSpeed = 5f; // m/s — enough to feel live, not enough to startle
+            _rb.linearVelocity = downhill * kSpawnSpeed;
         }
 
         void OnCollisionEnter(Collision c)

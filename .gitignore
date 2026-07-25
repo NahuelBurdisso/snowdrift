@@ -13,3 +13,6 @@ test-results.xml
 
 # Raw third-party downloads (not for redistribution)
 _incoming/
+
+# Batchmode screenshot output (generated, not versioned)
+Screenshots/

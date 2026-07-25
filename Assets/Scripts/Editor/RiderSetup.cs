@@ -8,6 +8,7 @@
 // Idempotency: safe to run multiple times.  Overwrites the prefab content in-place.
 
 using System.IO;
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -238,6 +239,9 @@ namespace Snowdrift.Editor
             animator.runtimeAnimatorController = controller;
             animator.applyRootMotion = false;
 
+            // ── Task 7: Build ragdoll inside the prefab instance ──
+            Step2b_BuildRagdoll(riderInstance, animator);
+
             // Save as prefab (overwrite if exists)
             var prefab = PrefabUtility.SaveAsPrefabAsset(riderInstance, PrefabPath);
             if (prefab == null)
@@ -247,6 +251,266 @@ namespace Snowdrift.Editor
 
             // Destroy the temp instance
             Object.DestroyImmediate(riderInstance);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Step 2b (Task 7): Build ragdoll inside the rider prefab instance.
+        // Called from Step2_3_BuildAndSavePrefab before SaveAsPrefabAsset.
+        // Idempotent: strips existing joints/rigidbodies/colliders first.
+        // ─────────────────────────────────────────────────────────────────────
+        static void Step2b_BuildRagdoll(GameObject riderInstance, Animator anim)
+        {
+            if (anim == null || !anim.isHuman || anim.avatar == null || !anim.avatar.isValid)
+            {
+                Debug.LogWarning("[RiderSetup] Ragdoll skipped: Animator is not humanoid or avatar invalid.");
+                return;
+            }
+
+            int ragdollLayer = EnsureRagdollLayer();
+
+            // ── Resolve bone transforms ──────────────────────────────────────
+            // 11 bones: Hips, Spine, Head, UpperArm×2, LowerArm×2, UpperLeg×2, LowerLeg×2
+            var boneMap = new Dictionary<HumanBodyBones, Transform>
+            {
+                { HumanBodyBones.Hips,           anim.GetBoneTransform(HumanBodyBones.Hips) },
+                { HumanBodyBones.Spine,          anim.GetBoneTransform(HumanBodyBones.Spine) },
+                { HumanBodyBones.Head,           anim.GetBoneTransform(HumanBodyBones.Head) },
+                { HumanBodyBones.LeftUpperArm,   anim.GetBoneTransform(HumanBodyBones.LeftUpperArm) },
+                { HumanBodyBones.RightUpperArm,  anim.GetBoneTransform(HumanBodyBones.RightUpperArm) },
+                { HumanBodyBones.LeftLowerArm,   anim.GetBoneTransform(HumanBodyBones.LeftLowerArm) },
+                { HumanBodyBones.RightLowerArm,  anim.GetBoneTransform(HumanBodyBones.RightLowerArm) },
+                { HumanBodyBones.LeftUpperLeg,   anim.GetBoneTransform(HumanBodyBones.LeftUpperLeg) },
+                { HumanBodyBones.RightUpperLeg,  anim.GetBoneTransform(HumanBodyBones.RightUpperLeg) },
+                { HumanBodyBones.LeftLowerLeg,   anim.GetBoneTransform(HumanBodyBones.LeftLowerLeg) },
+                { HumanBodyBones.RightLowerLeg,  anim.GetBoneTransform(HumanBodyBones.RightLowerLeg) },
+            };
+
+            // Check all bones resolved
+            foreach (var kvp in boneMap)
+            {
+                if (kvp.Value == null)
+                {
+                    Debug.LogWarning($"[RiderSetup] Ragdoll: bone {kvp.Key} not found — skipping ragdoll build.");
+                    return;
+                }
+            }
+
+            // ── Strip existing ragdoll components (idempotency) ──────────────
+            // Must remove joints first (they reference Rigidbodies), then Rigidbodies, then Colliders.
+            foreach (var kvp in boneMap)
+            {
+                var t = kvp.Value;
+                foreach (var j in t.GetComponents<CharacterJoint>())
+                    Object.DestroyImmediate(j);
+            }
+            foreach (var kvp in boneMap)
+            {
+                var t = kvp.Value;
+                foreach (var rb in t.GetComponents<Rigidbody>())
+                    Object.DestroyImmediate(rb);
+                foreach (var col in t.GetComponents<Collider>())
+                    Object.DestroyImmediate(col);
+            }
+
+            // ── Mass table ───────────────────────────────────────────────────
+            var massMap = new Dictionary<HumanBodyBones, float>
+            {
+                { HumanBodyBones.Hips,          8f },
+                { HumanBodyBones.Spine,         8f },
+                { HumanBodyBones.Head,          4f },
+                { HumanBodyBones.LeftUpperArm,  2f },
+                { HumanBodyBones.RightUpperArm, 2f },
+                { HumanBodyBones.LeftLowerArm,  2f },
+                { HumanBodyBones.RightLowerArm, 2f },
+                { HumanBodyBones.LeftUpperLeg,  1.5f },
+                { HumanBodyBones.RightUpperLeg, 1.5f },
+                { HumanBodyBones.LeftLowerLeg,  1.5f },
+                { HumanBodyBones.RightLowerLeg, 1.5f },
+            };
+
+            // ── Add Rigidbody + Collider to every bone ───────────────────────
+            var rbMap = new Dictionary<HumanBodyBones, Rigidbody>();
+            foreach (var kvp in boneMap)
+            {
+                var bone  = kvp.Key;
+                var t     = kvp.Value;
+                t.gameObject.layer = ragdollLayer;
+
+                var rb = t.gameObject.AddComponent<Rigidbody>();
+                rb.mass        = massMap[bone];
+                rb.isKinematic = true;
+                rbMap[bone]    = rb;
+
+                // Collider sized plausibly to bone role
+                AddBoneCollider(bone, t);
+            }
+
+            // ── CharacterJoints on child bones (Hips gets none) ─────────────
+            // Joint hierarchy: Hips(root) → Spine → Head
+            //                               ↓                ↓
+            //               UpperArm → LowerArm    UpperLeg → LowerLeg
+            var jointParent = new Dictionary<HumanBodyBones, HumanBodyBones>
+            {
+                { HumanBodyBones.Spine,          HumanBodyBones.Hips },
+                { HumanBodyBones.Head,           HumanBodyBones.Spine },
+                { HumanBodyBones.LeftUpperArm,   HumanBodyBones.Spine },
+                { HumanBodyBones.RightUpperArm,  HumanBodyBones.Spine },
+                { HumanBodyBones.LeftLowerArm,   HumanBodyBones.LeftUpperArm },
+                { HumanBodyBones.RightLowerArm,  HumanBodyBones.RightUpperArm },
+                { HumanBodyBones.LeftUpperLeg,   HumanBodyBones.Hips },
+                { HumanBodyBones.RightUpperLeg,  HumanBodyBones.Hips },
+                { HumanBodyBones.LeftLowerLeg,   HumanBodyBones.LeftUpperLeg },
+                { HumanBodyBones.RightLowerLeg,  HumanBodyBones.RightUpperLeg },
+            };
+
+            foreach (var kvp in jointParent)
+            {
+                var childBone  = kvp.Key;
+                var parentBone = kvp.Value;
+                var t          = boneMap[childBone];
+
+                var joint = t.gameObject.AddComponent<CharacterJoint>();
+                joint.connectedBody = rbMap[parentBone];
+
+                // Reasonable swing/twist limits
+                var lowTwist  = new SoftJointLimit(); lowTwist.limit  = -40f;
+                var highTwist = new SoftJointLimit(); highTwist.limit =  40f;
+                var swing1    = new SoftJointLimit(); swing1.limit    =  60f;
+                var swing2    = new SoftJointLimit(); swing2.limit    =  40f;
+                joint.lowTwistLimit  = lowTwist;
+                joint.highTwistLimit = highTwist;
+                joint.swing1Limit    = swing1;
+                joint.swing2Limit    = swing2;
+            }
+
+            Debug.Log($"[RiderSetup] Ragdoll built: {boneMap.Count} bones on layer '{LayerMask.LayerToName(ragdollLayer)}' ({ragdollLayer}).");
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Add a plausibly-sized collider to a ragdoll bone transform.
+        // ─────────────────────────────────────────────────────────────────────
+        static void AddBoneCollider(HumanBodyBones bone, Transform t)
+        {
+            switch (bone)
+            {
+                case HumanBodyBones.Head:
+                {
+                    var s = t.gameObject.AddComponent<SphereCollider>();
+                    s.radius = 0.11f;
+                    s.center = Vector3.up * 0.07f;
+                    break;
+                }
+                case HumanBodyBones.Hips:
+                {
+                    var b = t.gameObject.AddComponent<BoxCollider>();
+                    b.size   = new Vector3(0.28f, 0.18f, 0.18f);
+                    b.center = Vector3.zero;
+                    break;
+                }
+                case HumanBodyBones.Spine:
+                {
+                    var c = t.gameObject.AddComponent<CapsuleCollider>();
+                    c.direction = 1; // Y axis
+                    c.height    = 0.30f;
+                    c.radius    = 0.12f;
+                    c.center    = new Vector3(0f, 0.15f, 0f);
+                    break;
+                }
+                case HumanBodyBones.LeftUpperArm:
+                case HumanBodyBones.RightUpperArm:
+                {
+                    var c = t.gameObject.AddComponent<CapsuleCollider>();
+                    c.direction = 0; // X axis (arm extends laterally)
+                    c.height    = 0.26f;
+                    c.radius    = 0.05f;
+                    c.center    = new Vector3(bone == HumanBodyBones.LeftUpperArm ? -0.13f : 0.13f, 0f, 0f);
+                    break;
+                }
+                case HumanBodyBones.LeftLowerArm:
+                case HumanBodyBones.RightLowerArm:
+                {
+                    var c = t.gameObject.AddComponent<CapsuleCollider>();
+                    c.direction = 0;
+                    c.height    = 0.24f;
+                    c.radius    = 0.04f;
+                    c.center    = new Vector3(bone == HumanBodyBones.LeftLowerArm ? -0.12f : 0.12f, 0f, 0f);
+                    break;
+                }
+                case HumanBodyBones.LeftUpperLeg:
+                case HumanBodyBones.RightUpperLeg:
+                {
+                    var c = t.gameObject.AddComponent<CapsuleCollider>();
+                    c.direction = 1; // Y axis (leg extends down)
+                    c.height    = 0.38f;
+                    c.radius    = 0.07f;
+                    c.center    = new Vector3(0f, -0.19f, 0f);
+                    break;
+                }
+                case HumanBodyBones.LeftLowerLeg:
+                case HumanBodyBones.RightLowerLeg:
+                {
+                    var c = t.gameObject.AddComponent<CapsuleCollider>();
+                    c.direction = 1;
+                    c.height    = 0.36f;
+                    c.radius    = 0.05f;
+                    c.center    = new Vector3(0f, -0.18f, 0f);
+                    break;
+                }
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Ensure the "Ragdoll" layer exists in TagManager.asset.
+        // Writes to the first free slot >= 8.
+        // Returns the layer index.
+        // ─────────────────────────────────────────────────────────────────────
+        static int EnsureRagdollLayer()
+        {
+            const string layerName = "Ragdoll";
+
+            // Check if already exists
+            int existing = LayerMask.NameToLayer(layerName);
+            if (existing >= 0)
+                return existing;
+
+            var tagManagerPath = "ProjectSettings/TagManager.asset";
+            var tagManagerSO   = new SerializedObject(
+                AssetDatabase.LoadAllAssetsAtPath(tagManagerPath)[0]);
+            var layers = tagManagerSO.FindProperty("layers");
+
+            // Find first free slot >= 8 (Unity built-in layers occupy 0-7)
+            int freeSlot = -1;
+            for (int i = 8; i < layers.arraySize; i++)
+            {
+                string val = layers.GetArrayElementAtIndex(i).stringValue;
+                if (string.IsNullOrEmpty(val))
+                {
+                    freeSlot = i;
+                    break;
+                }
+            }
+
+            if (freeSlot < 0)
+            {
+                Debug.LogError("[RiderSetup] No free layer slot >= 8 found in TagManager. Ragdoll layer not created.");
+                return 0; // fallback to Default — ragdoll still works, just no layer separation
+            }
+
+            layers.GetArrayElementAtIndex(freeSlot).stringValue = layerName;
+            tagManagerSO.ApplyModifiedProperties();
+            AssetDatabase.SaveAssets();
+
+            // Force Unity to reload the layer registry
+            AssetDatabase.ImportAsset(tagManagerPath);
+
+            int result = LayerMask.NameToLayer(layerName);
+            if (result < 0)
+            {
+                // LayerMask not yet refreshed in this domain; return the slot index directly
+                result = freeSlot;
+            }
+            Debug.Log($"[RiderSetup] Created layer '{layerName}' at index {result}.");
+            return result;
         }
 
         // ─────────────────────────────────────────────────────────────────────

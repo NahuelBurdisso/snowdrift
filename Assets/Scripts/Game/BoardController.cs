@@ -21,6 +21,13 @@ namespace Snowdrift.Game
         bool _airborne;
         public bool Airborne => _airborne;
         public bool GrabHeld => _grabL || _grabR;
+        public bool GrabLeftHeld => _grabL;
+        public bool GrabRightHeld => _grabR;
+        /// <summary>0..1 fraction of max jump charge; 0 when not charging.</summary>
+        public float ChargeFraction => _chargeHeld ? Mathf.Clamp01(_charge / tuning.chargeTime) : 0f;
+        /// <summary>True inside the auto-land assist window (GroundSensor.PredictLanding hit this FixedUpdate).</summary>
+        public bool NearLanding { get; private set; }
+        public float SteerInput => _steerInput;
         public float YawDegPerFix { get; private set; }
         public float PitchDegPerFix { get; private set; }
         public Vector3 Velocity => _rb.linearVelocity;
@@ -80,6 +87,7 @@ namespace Snowdrift.Game
 
         void GroundMove(float dt)
         {
+            NearLanding = false;
             var n = _sensor.SmoothedNormal;
             var vel = _rb.linearVelocity;
 
@@ -132,8 +140,9 @@ namespace Snowdrift.Game
             _pitchVel = Mathf.Lerp(_pitchVel, _flipInput * tuning.flipDegPerSec, k);
 
             // Auto-land assist near touchdown
-            if (_sensor.PredictLanding(vel, tuning.autoLandWindow, out var n)
-                && Vector3.Angle(transform.up, n) <= tuning.autoLandMaxAngle)
+            bool predictHit = _sensor.PredictLanding(vel, tuning.autoLandWindow, out var n);
+            NearLanding = predictHit && Vector3.Angle(transform.up, n) <= tuning.autoLandMaxAngle;
+            if (NearLanding)
             {
                 var fwd = Vector3.ProjectOnPlane(transform.forward, n).normalized;
                 if (fwd.sqrMagnitude > 1e-4f)
@@ -205,7 +214,7 @@ namespace Snowdrift.Game
             _rb.linearVelocity = Vector3.zero;
             _lean = 0f; _yawVel = 0f; _pitchVel = 0f;
             _charge = 0f; _buffer = 0f; _coyote = 0f; _chargeHeld = false;
-            _tuck = false; _drift = false; _grabL = false; _grabR = false; _airTime = 0f;
+            _tuck = false; _drift = false; _grabL = false; _grabR = false; _airTime = 0f; NearLanding = false;
             OnAirborneChanged?.Invoke(false);
         }
 

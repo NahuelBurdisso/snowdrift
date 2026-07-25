@@ -10,3 +10,6 @@ test-results.xml
 *.log
 .vscode/
 *.slnx
+
+# Raw third-party downloads (not for redistribution)
+_incoming/

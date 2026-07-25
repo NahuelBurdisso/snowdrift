@@ -570,6 +570,16 @@ namespace Snowdrift.Editor
 
             Debug.Log("[RiderSetup] Instantiated Rider prefab under Player/Visual.");
 
+            // Remove placeholder capsule (BodyMesh) that ProjectSetup creates as a stand-in.
+            // CrashHandler.visual points at the Visual root, not at BodyMesh, so this is safe.
+            // BoardVisual is intentionally kept.
+            var bodyMesh = visualTransform.Find("BodyMesh");
+            if (bodyMesh != null)
+            {
+                Object.DestroyImmediate(bodyMesh.gameObject);
+                Debug.Log("[RiderSetup] Removed placeholder BodyMesh from Player/Visual.");
+            }
+
             // ── Task 6 Step 2: Wire RiderAnimator ──────────────────────────
             // Add RiderAnimator to the player root (so it can access BoardController).
             // Remove existing to avoid double-wiring on re-run.

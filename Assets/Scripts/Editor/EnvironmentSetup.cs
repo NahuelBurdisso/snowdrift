@@ -423,35 +423,23 @@ namespace Snowdrift.Editor
         static void ApplyMaterialToRenderers(GameObject go, Material mat)
         {
             if (mat == null) return;
+            // Always replace every material slot with the shared prop material.
+            // ConvertFbxMaterialsToUrp converts Kenney FBX embedded colormap mats to URP/Lit,
+            // which would make an allUrp check pass and skip the assignment — leaving rocks
+            // rendering with the tan colormap instead of the intended PropRock/PropPine material.
             foreach (var mr in go.GetComponentsInChildren<MeshRenderer>(true))
             {
-                // Ensure URP shader (not Standard / magenta) on every sub-material slot
                 var mats = mr.sharedMaterials;
-                bool allUrp = true;
-                foreach (var m in mats)
-                    if (m == null || !IsUrpCompatible(m)) { allUrp = false; break; }
-
-                if (!allUrp)
-                {
-                    // Replace every slot with our prop material
-                    var replacement = new Material[mats.Length];
-                    for (int i = 0; i < replacement.Length; i++) replacement[i] = mat;
-                    mr.sharedMaterials = replacement;
-                }
-                // else keep existing URP materials (they are already fine)
+                var replacement = new Material[mats.Length];
+                for (int i = 0; i < replacement.Length; i++) replacement[i] = mat;
+                mr.sharedMaterials = replacement;
             }
             foreach (var smr in go.GetComponentsInChildren<SkinnedMeshRenderer>(true))
             {
                 var mats = smr.sharedMaterials;
-                bool allUrp = true;
-                foreach (var m in mats)
-                    if (m == null || !IsUrpCompatible(m)) { allUrp = false; break; }
-                if (!allUrp)
-                {
-                    var replacement = new Material[mats.Length];
-                    for (int i = 0; i < replacement.Length; i++) replacement[i] = mat;
-                    smr.sharedMaterials = replacement;
-                }
+                var replacement = new Material[mats.Length];
+                for (int i = 0; i < replacement.Length; i++) replacement[i] = mat;
+                smr.sharedMaterials = replacement;
             }
         }
 

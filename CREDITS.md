@@ -8,7 +8,7 @@ Third-party assets used in Snowdrift. CC0 assets require no attribution; given a
 |---|---|---|---|
 | Holiday Kit (pines, props) — *pending download* | Kenney | CC0 1.0 | https://kenney.nl/assets/holiday-kit |
 | Nature Kit (rocks) — *pending download* | Kenney | CC0 1.0 | https://kenney.nl/assets/nature-kit |
-| Rigged low-poly character — *pending download* | Quaternius | CC0 1.0 | https://quaternius.com |
+| Animated Human (rigged humanoid character) | Quaternius | CC0 1.0 | https://quaternius.com |
 
 ## Mixamo animations (Adobe license — NOT CC0)
 

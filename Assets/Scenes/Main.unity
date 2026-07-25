@@ -670,6 +670,7 @@ GameObject:
   - component: {fileID: 571183978}
   - component: {fileID: 571183979}
   - component: {fileID: 571183980}
+  - component: {fileID: 571183986}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -852,6 +853,23 @@ Transform:
   - {fileID: 946722338}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &571183986
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 571183976}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0228052f8b98ca94bb879d67a57030ab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Snowdrift.Game::Snowdrift.Game.RiderAnimator
+  board: {fileID: 571183977}
+  animator: {fileID: 1295542808}
+  spineBone: {fileID: 1295542806}
+  maxLeanDeg: 20
+  leanSmooth: 12
 --- !u!1 &637207338
 GameObject:
   m_ObjectHideFlags: 0
@@ -10913,6 +10931,7 @@ Transform:
   m_Children:
   - {fileID: 1790962204}
   - {fileID: 2111385271}
+  - {fileID: 1295542807}
   m_Father: {fileID: 571183985}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1147850297
@@ -11302,6 +11321,78 @@ RectTransform:
   m_AnchoredPosition: {x: -10, y: -10}
   m_SizeDelta: {x: 200, y: 45}
   m_Pivot: {x: 1, y: 1}
+--- !u!1001 &1295542805
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 1140284894}
+    m_Modifications:
+    - target: {fileID: 6221506133023185220, guid: 53a9f92ce45090a4991ef538726c9b7b, type: 3}
+      propertyPath: m_Name
+      value: RiderVisual
+      objectReference: {fileID: 0}
+    - target: {fileID: 6709495319827219454, guid: 53a9f92ce45090a4991ef538726c9b7b, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6709495319827219454, guid: 53a9f92ce45090a4991ef538726c9b7b, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.08
+      objectReference: {fileID: 0}
+    - target: {fileID: 6709495319827219454, guid: 53a9f92ce45090a4991ef538726c9b7b, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6709495319827219454, guid: 53a9f92ce45090a4991ef538726c9b7b, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6709495319827219454, guid: 53a9f92ce45090a4991ef538726c9b7b, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6709495319827219454, guid: 53a9f92ce45090a4991ef538726c9b7b, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6709495319827219454, guid: 53a9f92ce45090a4991ef538726c9b7b, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6709495319827219454, guid: 53a9f92ce45090a4991ef538726c9b7b, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6709495319827219454, guid: 53a9f92ce45090a4991ef538726c9b7b, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6709495319827219454, guid: 53a9f92ce45090a4991ef538726c9b7b, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 53a9f92ce45090a4991ef538726c9b7b, type: 3}
+--- !u!4 &1295542806 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 2262865093808041462, guid: 53a9f92ce45090a4991ef538726c9b7b, type: 3}
+  m_PrefabInstance: {fileID: 1295542805}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &1295542807 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 6709495319827219454, guid: 53a9f92ce45090a4991ef538726c9b7b, type: 3}
+  m_PrefabInstance: {fileID: 1295542805}
+  m_PrefabAsset: {fileID: 0}
+--- !u!95 &1295542808 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 863783642349918596, guid: 53a9f92ce45090a4991ef538726c9b7b, type: 3}
+  m_PrefabInstance: {fileID: 1295542805}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1308353039
 GameObject:
   m_ObjectHideFlags: 0
@@ -17716,7 +17807,7 @@ ParticleSystem:
           m_PostInfinity: 2
           m_RotationOrder: 4
       cycleCount: 1
-      repeatInterval: 0.0001
+      repeatInterval: 0.01
       probability: 1
   SizeModule:
     enabled: 0

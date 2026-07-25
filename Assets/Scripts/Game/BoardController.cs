@@ -25,7 +25,7 @@ namespace Snowdrift.Game
         public bool GrabRightHeld => _grabR;
         /// <summary>0..1 fraction of max jump charge; 0 when not charging.</summary>
         public float ChargeFraction => _chargeHeld ? Mathf.Clamp01(_charge / tuning.chargeTime) : 0f;
-        /// <summary>True inside the auto-land assist window (GroundSensor.PredictLanding hit this FixedUpdate).</summary>
+        /// <summary>True inside the auto-land assist window (PredictLanding hit within autoLandMaxAngle this FixedUpdate).</summary>
         public bool NearLanding { get; private set; }
         public float SteerInput => _steerInput;
         public float YawDegPerFix { get; private set; }
@@ -203,6 +203,7 @@ namespace Snowdrift.Game
         public void Crash()
         {
             Crashed = true;
+            NearLanding = false;
             OnCrashed?.Invoke();               // CrashHandler reads Velocity for the tumble first
             _rb.linearVelocity = Vector3.zero; // then root freezes until respawn
         }

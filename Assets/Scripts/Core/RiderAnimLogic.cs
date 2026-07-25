@@ -1,3 +1,5 @@
+using UnityEngine;
+
 namespace Snowdrift.Core
 {
     public enum RiderPose { Ride, Air, GrabL, GrabR, Brace }
@@ -37,6 +39,6 @@ namespace Snowdrift.Core
 
         /// Maps steer (-1..1) to an additive spine lean in degrees.
         public static float LeanAngle(float steer, float maxLeanDeg)
-            => UnityEngine.Mathf.Clamp(steer, -1f, 1f) * maxLeanDeg;
+            => Mathf.Clamp(steer, -1f, 1f) * maxLeanDeg;
     }
 }

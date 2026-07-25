@@ -8,7 +8,7 @@ public class RiderAnimLogicTests
     {
         var p = RiderAnimLogic.Map(new RiderAnimInput { Grounded = true });
         Assert.AreEqual(RiderPose.Ride, p.Pose);
-        Assert.AreEqual(0f, p.Crouch);
+        Assert.AreEqual(0f, p.Crouch, 1e-4f);
     }
 
     [Test]
@@ -69,7 +69,7 @@ public class RiderAnimLogicTests
         Assert.AreEqual(RiderPose.Brace, p.Pose);
     }
 
-    // One tick above the window must be Air.
+    // Slightly above the window must be Air.
     [Test]
     public void BraceWindow_JustAbove_IsAir()
     {

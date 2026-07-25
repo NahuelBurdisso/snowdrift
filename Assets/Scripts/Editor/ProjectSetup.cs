@@ -313,6 +313,12 @@ namespace Snowdrift.Editor
             comboScore.tuning = tuningAsset;
             // terrain wired below
 
+            // ── Shared particle material (URP Particles/Unlit — prevents magenta in URP) ──
+            var particleMat = LoadOrCreateParticleMat();
+
+            // Assign to AmbientSnow renderer
+            ambientSnowGo.GetComponent<ParticleSystemRenderer>().sharedMaterial = particleMat;
+
             // ── GameFeel: particle systems + audio ──
             // Carve spray (world space)
             var carveSprayGo = new GameObject("CarveSpray");
@@ -333,6 +339,7 @@ namespace Snowdrift.Editor
                 shape.shapeType = ParticleSystemShapeType.Cone;
                 shape.angle = 25f;
             }
+            carveSprayGo.GetComponent<ParticleSystemRenderer>().sharedMaterial = particleMat;
 
             // Land burst (world space)
             var landBurstGo = new GameObject("LandBurst");
@@ -351,6 +358,7 @@ namespace Snowdrift.Editor
                 var burst = new ParticleSystem.Burst(0f, 30);
                 em.SetBursts(new ParticleSystem.Burst[] { burst });
             }
+            landBurstGo.GetComponent<ParticleSystemRenderer>().sharedMaterial = particleMat;
 
             // Speed streaks (local space, near camera)
             var speedStreaksGo = new GameObject("SpeedStreaks");
@@ -372,6 +380,7 @@ namespace Snowdrift.Editor
                 shape.shapeType = ParticleSystemShapeType.Sphere;
                 shape.radius = 0.5f;
             }
+            speedStreaksGo.GetComponent<ParticleSystemRenderer>().sharedMaterial = particleMat;
 
             // TrailRenderer
             var trailGo = new GameObject("Trail");
@@ -571,6 +580,8 @@ namespace Snowdrift.Editor
             const string skyMatPath = "Assets/Materials/SkyGradient.mat";
             EnsureDir("Assets/Materials");
             var skyShader = Shader.Find("Snowdrift/GradientSky");
+            if (skyShader == null)
+                Debug.LogWarning("[ProjectSetup] Shader 'Snowdrift/GradientSky' not found — falling back to Skybox/Procedural. Import the custom sky shader to fix this.");
             Material skyMat = AssetDatabase.LoadAssetAtPath<Material>(skyMatPath);
             if (skyMat == null)
             {
@@ -621,6 +632,46 @@ namespace Snowdrift.Editor
         // ─────────────────────────────────────────────────────────────
         // Helpers
         // ─────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Loads Assets/Materials/ParticleSnow.mat or creates it with URP Particles/Unlit.
+        /// Prevents magenta particles in URP by ensuring every ParticleSystemRenderer has a material.
+        /// </summary>
+        static Material LoadOrCreateParticleMat()
+        {
+            const string path = "Assets/Materials/ParticleSnow.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat != null) return mat;
+
+            EnsureDir("Assets/Materials");
+            var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
+            if (shader == null)
+            {
+                Debug.LogWarning("[ProjectSetup] Shader 'Universal Render Pipeline/Particles/Unlit' not found — falling back to 'Universal Render Pipeline/Unlit'.");
+                shader = Shader.Find("Universal Render Pipeline/Unlit");
+            }
+            if (shader == null)
+                shader = Shader.Find("Standard");
+
+            mat = new Material(shader);
+            mat.color = Color.white;
+            // Enable alpha blending (Surface = Transparent) if the property exists on this variant
+            if (mat.HasProperty("_Surface"))
+            {
+                mat.SetFloat("_Surface", 1f); // 0 = Opaque, 1 = Transparent
+                mat.SetOverrideTag("RenderType", "Transparent");
+                mat.SetInt("_SrcBlend",  (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                mat.SetInt("_DstBlend",  (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                mat.SetInt("_ZWrite", 0);
+                mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            }
+
+            AssetDatabase.CreateAsset(mat, path);
+            Debug.Log("[ProjectSetup] Created ParticleSnow.mat at " + path);
+            return mat;
+        }
+
         static Text CreateUIText(GameObject parent, string name, string defaultText,
             Font font, int fontSize, Vector2 anchorMin, Vector2 anchorMax,
             Vector2 anchoredPos, Vector2 sizeDelta)

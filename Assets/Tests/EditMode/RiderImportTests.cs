@@ -9,13 +9,15 @@ public class RiderImportTests
     {
         var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Rider.prefab");
         Assert.IsNotNull(prefab, "Rider prefab missing — run Snowdrift/Build Rider Prefab");
-        Assert.IsFalse(prefab.GetComponentInChildren<Animator>(true).applyRootMotion);
+        var anim = prefab.GetComponentInChildren<Animator>(true);
+        Assert.IsNotNull(anim, "Rider prefab has no Animator");
+        Assert.IsFalse(anim.applyRootMotion);
     }
 
     [Test]
     public void AnimationImports_BakeRootIntoPose()
     {
-        foreach (var guid in AssetDatabase.FindAssets("t:Model", new[] { "Assets/Art/Animations" }))
+        foreach (var guid in AssetDatabase.FindAssets("t:Model", new[] { "Assets/Art/Animations", "Assets/Art/Rider" }))
         {
             var path = AssetDatabase.GUIDToAssetPath(guid);
             var imp = (ModelImporter)AssetImporter.GetAtPath(path);

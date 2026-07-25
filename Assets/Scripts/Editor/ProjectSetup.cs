@@ -644,6 +644,16 @@ namespace Snowdrift.Editor
             UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene, scenePath);
             AddSceneToBuildSettings(scenePath);
 
+            // ── Wire Rider prefab into scene (idempotent; no-op if prefab missing) ──
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(RiderSetup.PrefabPath) != null)
+            {
+                RiderSetup.Step4_WireScene();
+            }
+            else
+            {
+                Debug.LogWarning("[ProjectSetup] Rider prefab missing — run Snowdrift/Build Rider Prefab after Build Scene");
+            }
+
             Debug.Log("[ProjectSetup] Main.unity built and saved.");
         }
 

@@ -23,7 +23,7 @@ namespace Snowdrift.Editor
         private const string IncomingFbx    = "D:/proyects/snowdrift/_incoming/Quaternius_AnimatedHuman.fbx";
         private const string RiderFbxPath   = "Assets/Art/Rider/AnimatedHuman.fbx";
         private const string RiderDir       = "Assets/Art/Rider";
-        private const string PrefabPath     = "Assets/Prefabs/Rider.prefab";
+        internal const string PrefabPath     = "Assets/Prefabs/Rider.prefab";
         private const string PrefabDir      = "Assets/Prefabs";
         private const string ControllerPath = "Assets/Art/Animations/RiderController.controller";
         private const string ScenePath      = "Assets/Scenes/Main.unity";
@@ -75,7 +75,7 @@ namespace Snowdrift.Editor
                     Debug.LogError("[RiderSetup] Source FBX not found at: " + fullSrc);
                     return false;
                 }
-                File.Copy(fullSrc, fullDest, overwrite: false);
+                File.Copy(fullSrc, fullDest, overwrite: true);
                 Debug.Log("[RiderSetup] Copied FBX to " + RiderFbxPath);
             }
 
@@ -252,7 +252,7 @@ namespace Snowdrift.Editor
         // ─────────────────────────────────────────────────────────────────────
         // Step 4: Wire prefab into Main.unity + add RiderAnimator (Task 6 Step 2)
         // ─────────────────────────────────────────────────────────────────────
-        static void Step4_WireScene()
+        internal static void Step4_WireScene()
         {
             // Load the scene
             var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);

@@ -23,12 +23,19 @@ namespace Snowdrift.Game
 
         void OnEnable()
         {
+            if (board == null)
+            {
+                Debug.LogWarning("RiderAnimator: no BoardController assigned, disabling");
+                enabled = false;
+                return;
+            }
             board.OnLand += HandleLand;
             board.OnCrashed += HandleCrash;
             board.OnJump += HandleJump;
         }
         void OnDisable()
         {
+            if (board == null) return;
             board.OnLand -= HandleLand;
             board.OnCrashed -= HandleCrash;
             board.OnJump -= HandleJump;

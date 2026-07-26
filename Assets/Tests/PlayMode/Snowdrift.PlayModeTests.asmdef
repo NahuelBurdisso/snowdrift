@@ -7,7 +7,7 @@
     "UnityEditor.TestRunner"
   ],
   "includePlatforms": [],
-  "precompiledReferences": ["nunit.framework.dll"],
-  "overrideReferences": true,
+  "precompiledReferences": [],
+  "overrideReferences": false,
   "defineConstraints": ["UNITY_INCLUDE_TESTS"]
 }

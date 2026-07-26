@@ -12,6 +12,7 @@ namespace Snowdrift.Game
         public event Action OnJump;
         public event Action<LandingGrade, float> OnLand;  // grade, airtime
         public event Action OnCrashed;
+        public event Action OnRespawned;
         public event Action<bool> OnAirborneChanged;
 
         Rigidbody _rb; GroundSensor _sensor;
@@ -225,6 +226,7 @@ namespace Snowdrift.Game
             _charge = 0f; _buffer = 0f; _coyote = 0f; _chargeHeld = false; _jumpRequest = false;
             _tuck = false; _drift = false; _grabL = false; _grabR = false; _airTime = 0f; NearLanding = false;
             OnAirborneChanged?.Invoke(false);
+            OnRespawned?.Invoke();
         }
 
         /// <summary>

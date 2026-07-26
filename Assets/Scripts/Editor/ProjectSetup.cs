@@ -496,9 +496,10 @@ namespace Snowdrift.Editor
 
             // ── CameraRig ──
             var cameraRigGo = new GameObject("CameraRig");
-            cameraRigGo.transform.position = new Vector3(0f, 2.5f, -6f);
+            cameraRigGo.transform.position = new Vector3(0f, 3.5f, -6f);
             var cameraRig = cameraRigGo.AddComponent<CameraRig>();
             cameraRig.board = boardController;
+            cameraRig.crashHandler = crashHandler;
             cameraRig.terrain = terrainStream;
 
             // ImpulseSource on CameraRig
@@ -514,7 +515,7 @@ namespace Snowdrift.Editor
 
             // Add CinemachineFollow component (Body)
             var cmFollow = vcamGo.AddComponent<CinemachineFollow>();
-            cmFollow.FollowOffset = new Vector3(0f, 2.5f, -6f);
+            cmFollow.FollowOffset = new Vector3(0f, 3.5f, -6f);
             // Damping via TrackerSettings
             var ts = cmFollow.TrackerSettings;
             ts.PositionDamping = new Vector3(0.5f, 0.5f, 0.5f);
@@ -529,10 +530,18 @@ namespace Snowdrift.Editor
             cameraRig.vcam = vcam;
 
             // ── HUD Canvas ──
+            // ScreenSpaceCamera (not Overlay) so Camera.Render() into a RenderTexture
+            // composites the HUD — required for batchmode-safe PlayMode capture tests.
+            // planeDistance 1.0 m: camera near is 0.3 m so 1.0 m is well clear of near-clip.
             var canvasGo = new GameObject("HUD");
             var canvas = canvasGo.AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvasGo.AddComponent<CanvasScaler>();
+            canvas.renderMode = RenderMode.ScreenSpaceCamera;
+            canvas.worldCamera = camera;          // Main Camera created above
+            canvas.planeDistance = 1.0f;
+            var canvasScaler = canvasGo.AddComponent<CanvasScaler>();
+            canvasScaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            canvasScaler.referenceResolution = new Vector2(1920f, 1080f);
+            canvasScaler.matchWidthOrHeight = 0.5f;
             canvasGo.AddComponent<GraphicRaycaster>();
 
             var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");

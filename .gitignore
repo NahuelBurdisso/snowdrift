@@ -6,8 +6,8 @@
 [Uu]serSettings/
 *.csproj
 *.sln
-test-results.xml
-playmode-results.xml
+*-results.xml
+review-editmode.xml
 *.log
 .vscode/
 *.slnx

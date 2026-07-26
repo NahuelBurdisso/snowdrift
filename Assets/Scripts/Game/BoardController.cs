@@ -128,9 +128,11 @@ namespace Snowdrift.Game
 
             // Align board to smoothed normal, keep yaw
             var up = n;
-            var fwd = Vector3.ProjectOnPlane(transform.forward, up).normalized;
-            if (fwd.sqrMagnitude > 1e-4f)
-                _rb.MoveRotation(Quaternion.Slerp(_rb.rotation, Quaternion.LookRotation(fwd, up), tuning.groundAlignRate * dt));
+            // Guard BEFORE normalizing: a tiny projection normalizes to a noisy unit
+            // vector (jittery rotation target); catching it pre-normalize skips the frame.
+            var alignFwd = Vector3.ProjectOnPlane(transform.forward, up);
+            if (alignFwd.sqrMagnitude >= 1e-4f)
+                _rb.MoveRotation(Quaternion.Slerp(_rb.rotation, Quaternion.LookRotation(alignFwd.normalized, up), tuning.groundAlignRate * dt));
             CountRotation();
         }
 
@@ -153,9 +155,9 @@ namespace Snowdrift.Game
             NearLanding = predictHit && Vector3.Angle(transform.up, n) <= tuning.autoLandMaxAngle;
             if (NearLanding)
             {
-                var fwd = Vector3.ProjectOnPlane(transform.forward, n).normalized;
-                if (fwd.sqrMagnitude > 1e-4f)
-                    _rb.MoveRotation(Quaternion.Slerp(_rb.rotation, Quaternion.LookRotation(fwd, n), tuning.autoLandSlerpRate * dt));
+                var landFwd = Vector3.ProjectOnPlane(transform.forward, n);
+                if (landFwd.sqrMagnitude >= 1e-4f)
+                    _rb.MoveRotation(Quaternion.Slerp(_rb.rotation, Quaternion.LookRotation(landFwd.normalized, n), tuning.autoLandSlerpRate * dt));
                 float decay = Mathf.Exp(-tuning.autoLandDecayRate * dt); _yawVel *= decay; _pitchVel *= decay;
             }
             transform.Rotate(_pitchVel * dt, 0f, 0f, Space.Self); // pitch (flip)

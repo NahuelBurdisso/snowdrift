@@ -12,6 +12,7 @@ namespace Snowdrift.Game
         public bool Paused { get; private set; }
 
         void Awake() { _i = this; }
+        void OnDestroy() { if (_i == this) _i = null; }
 
         public void Restart()
         {

@@ -60,6 +60,9 @@ namespace Snowdrift.Editor
                 new PoseCurve("Right Upper Leg Front-Back",   -0.3f),
                 new PoseCurve("Left Lower Leg Stretch",       -0.3f),
                 new PoseCurve("Right Lower Leg Stretch",      -0.3f),
+                // Snowboard stance: spread legs sideways so feet straddle the deck
+                new PoseCurve("Left Upper Leg In-Out",         0.35f),
+                new PoseCurve("Right Upper Leg In-Out",        0.35f),
             }),
             new PoseDef("GrabL", new[]
             {
@@ -69,6 +72,8 @@ namespace Snowdrift.Editor
                 new PoseCurve("Right Upper Leg Front-Back",   -0.8f),
                 new PoseCurve("Left Lower Leg Stretch",       -0.8f),
                 new PoseCurve("Right Lower Leg Stretch",      -0.8f),
+                new PoseCurve("Left Upper Leg In-Out",         0.35f),
+                new PoseCurve("Right Upper Leg In-Out",        0.35f),
             }),
             new PoseDef("GrabR", new[]
             {
@@ -78,6 +83,8 @@ namespace Snowdrift.Editor
                 new PoseCurve("Right Upper Leg Front-Back",   -0.8f),
                 new PoseCurve("Left Lower Leg Stretch",       -0.8f),
                 new PoseCurve("Right Lower Leg Stretch",      -0.8f),
+                new PoseCurve("Left Upper Leg In-Out",         0.35f),
+                new PoseCurve("Right Upper Leg In-Out",        0.35f),
             }),
             new PoseDef("Brace", new[]
             {
@@ -87,6 +94,8 @@ namespace Snowdrift.Editor
                 new PoseCurve("Right Lower Leg Stretch",      -0.6f),
                 new PoseCurve("Left Arm Down-Up",              0.4f),
                 new PoseCurve("Right Arm Down-Up",             0.4f),
+                new PoseCurve("Left Upper Leg In-Out",         0.35f),
+                new PoseCurve("Right Upper Leg In-Out",        0.35f),
             }),
         };
 

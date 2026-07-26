@@ -325,21 +325,27 @@ namespace Snowdrift.Editor
                     Object.DestroyImmediate(col);
             }
 
-            // ── Mass table ───────────────────────────────────────────────────
+            // ── Mass table — human-plausible distribution ────────────────────
+            // Legs heavier than arms (previously inverted) → lower centre of mass,
+            // ragdoll settles feet/hips-down instead of top-heavy cartwheeling.
             var massMap = new Dictionary<HumanBodyBones, float>
             {
-                { HumanBodyBones.Hips,          8f },
-                { HumanBodyBones.Spine,         8f },
-                { HumanBodyBones.Head,          4f },
+                { HumanBodyBones.Hips,          10f },
+                { HumanBodyBones.Spine,         10f },
+                { HumanBodyBones.Head,          5f },
                 { HumanBodyBones.LeftUpperArm,  2f },
                 { HumanBodyBones.RightUpperArm, 2f },
-                { HumanBodyBones.LeftLowerArm,  2f },
-                { HumanBodyBones.RightLowerArm, 2f },
-                { HumanBodyBones.LeftUpperLeg,  1.5f },
-                { HumanBodyBones.RightUpperLeg, 1.5f },
-                { HumanBodyBones.LeftLowerLeg,  1.5f },
-                { HumanBodyBones.RightLowerLeg, 1.5f },
+                { HumanBodyBones.LeftLowerArm,  1.5f },
+                { HumanBodyBones.RightLowerArm, 1.5f },
+                { HumanBodyBones.LeftUpperLeg,  6f },
+                { HumanBodyBones.RightUpperLeg, 6f },
+                { HumanBodyBones.LeftLowerLeg,  4f },
+                { HumanBodyBones.RightLowerLeg, 4f },
             };
+
+            // Shared snow-contact material: moderate friction so the ragdoll ploughs
+            // and slows in snow instead of ice-sliding forever; near-zero bounce.
+            var bonePhysMat = LoadOrCreateBonePhysicsMaterial();
 
             // ── Add Rigidbody + Collider to every bone ───────────────────────
             var rbMap = new Dictionary<HumanBodyBones, Rigidbody>();
@@ -355,10 +361,14 @@ namespace Snowdrift.Editor
                 rb.maxDepenetrationVelocity = 2f;   // cap depenetration impulse to reduce explosive separation
                 rb.solverIterations        = 12;    // more solver passes keeps joints stable under violence
                 rb.solverVelocityIterations = 4;
+                rb.linearDamping           = 0.15f; // snow drag — bleeds slide speed
+                rb.angularDamping          = 0.8f;  // limbs settle instead of windmilling
                 rbMap[bone]    = rb;
 
                 // Collider sized plausibly to bone role
                 AddBoneCollider(bone, t);
+                foreach (var bc in t.GetComponents<Collider>())
+                    bc.sharedMaterial = bonePhysMat;
             }
 
             // ── CharacterJoints on child bones (Hips gets none) ─────────────
@@ -379,6 +389,23 @@ namespace Snowdrift.Editor
                 { HumanBodyBones.RightLowerLeg,  HumanBodyBones.RightUpperLeg },
             };
 
+            // Per-joint anatomical limits: (twist, swing1, swing2).
+            // Elbows/knees behave hinge-like (one wide axis, others tight) — uniform
+            // limits previously let knees bend sideways, reading as broken limbs.
+            var jointLimits = new Dictionary<HumanBodyBones, (float twist, float swing1, float swing2)>
+            {
+                { HumanBodyBones.Spine,          (20f,  30f, 20f) },
+                { HumanBodyBones.Head,           (40f,  45f, 25f) },
+                { HumanBodyBones.LeftUpperArm,   (60f,  80f, 60f) },
+                { HumanBodyBones.RightUpperArm,  (60f,  80f, 60f) },
+                { HumanBodyBones.LeftLowerArm,   (10f, 100f, 10f) },
+                { HumanBodyBones.RightLowerArm,  (10f, 100f, 10f) },
+                { HumanBodyBones.LeftUpperLeg,   (30f,  70f, 40f) },
+                { HumanBodyBones.RightUpperLeg,  (30f,  70f, 40f) },
+                { HumanBodyBones.LeftLowerLeg,   (10f, 110f, 10f) },
+                { HumanBodyBones.RightLowerLeg,  (10f, 110f, 10f) },
+            };
+
             foreach (var kvp in jointParent)
             {
                 var childBone  = kvp.Key;
@@ -394,15 +421,21 @@ namespace Snowdrift.Editor
                 joint.projectionDistance  = 0.1f;   // max gap before projection kicks in (metres)
                 joint.projectionAngle     = 20f;    // max angular drift before angular projection (degrees)
 
-                // Reasonable swing/twist limits — tight enough to look plausible, loose enough for tumbles
-                var lowTwist  = new SoftJointLimit(); lowTwist.limit  = -40f;
-                var highTwist = new SoftJointLimit(); highTwist.limit =  40f;
-                var swing1    = new SoftJointLimit(); swing1.limit    =  60f;
-                var swing2    = new SoftJointLimit(); swing2.limit    =  40f;
+                var lim = jointLimits[childBone];
+                var lowTwist  = new SoftJointLimit { limit = -lim.twist };
+                var highTwist = new SoftJointLimit { limit =  lim.twist };
+                var swing1    = new SoftJointLimit { limit =  lim.swing1 };
+                var swing2    = new SoftJointLimit { limit =  lim.swing2 };
                 joint.lowTwistLimit  = lowTwist;
                 joint.highTwistLimit = highTwist;
                 joint.swing1Limit    = swing1;
                 joint.swing2Limit    = swing2;
+
+                // Soft limit springs: cushioned stop at the limit instead of a hard
+                // clamp — removes the "mannequin snap" look when limbs hit limits.
+                var spring = new SoftJointLimitSpring { spring = 250f, damper = 25f };
+                joint.twistLimitSpring = spring;
+                joint.swingLimitSpring = spring;
             }
 
             Debug.Log($"[RiderSetup] Ragdoll built: {boneMap.Count} bones on layer '{LayerMask.LayerToName(ragdollLayer)}' ({ragdollLayer}).");
@@ -411,6 +444,26 @@ namespace Snowdrift.Editor
         // ─────────────────────────────────────────────────────────────────────
         // Rider material helpers
         // ─────────────────────────────────────────────────────────────────────
+
+        /// Load or create the shared physics material for ragdoll bone colliders.
+        static PhysicsMaterial LoadOrCreateBonePhysicsMaterial()
+        {
+            const string path = "Assets/Materials/RagdollBone.physicMaterial";
+            var existing = AssetDatabase.LoadAssetAtPath<PhysicsMaterial>(path);
+            if (existing != null) return existing;
+
+            var pm = new PhysicsMaterial("RagdollBone")
+            {
+                dynamicFriction = 0.6f,
+                staticFriction  = 0.7f,
+                bounciness      = 0.05f,
+                frictionCombine = PhysicsMaterialCombine.Average,
+                bounceCombine   = PhysicsMaterialCombine.Minimum,
+            };
+            AssetDatabase.CreateAsset(pm, path);
+            Debug.Log("[RiderSetup] Created ragdoll bone physics material at " + path);
+            return pm;
+        }
 
         /// Load existing mat or create a new URP/Lit one at the given path.
         static Material LoadOrCreateRiderMat(string path, Color color, float smoothness)
@@ -644,7 +697,12 @@ namespace Snowdrift.Editor
             // Instantiate prefab under Visual root
             var riderGo = (GameObject)PrefabUtility.InstantiatePrefab(riderPrefab, visualTransform);
             riderGo.name = "RiderVisual";
-            riderGo.transform.localRotation = Quaternion.identity;
+            // Snowboard stance: rotate the whole rider ~-35° around Y so the body faces
+            // slightly across the board (regular stance) instead of ski-straight downhill.
+            // Combined with the leg-spread muscles in the pose clips, the feet land along
+            // the board's long axis. TrickSystem owns Player-root rotation; this is a
+            // fixed local offset on the visual only.
+            riderGo.transform.localRotation = Quaternion.Euler(0f, -35f, 0f);
 
             // Seat offset measured at RUNTIME (Diag_Closeup_RiderAndBoard telemetry):
             // the pose clips carry muscle curves only (no RootT), so the humanoid
@@ -654,8 +712,11 @@ namespace Snowdrift.Editor
             // animated hips 1:1 (verified: +0.131 localY -> +0.130 hips). With
             // localY = 0.211 the feet sat at -0.316 relative to the player root and
             // the board deck top is ~+0.10, so localY = 0.211 + (0.10 - (-0.316)) = 0.63.
-            riderGo.transform.localPosition = new Vector3(0f, 0.63f, 0f);
-            Debug.Log("[RiderSetup] Rider seated at localY=0.63 (runtime-measured feet-on-deck offset).");
+            // localZ = 0.22: the Ride pose bends knees so feet trail ~0.25 behind the
+            // hips — diag side capture showed feet over the tail. Shifting the rider
+            // forward centres the feet over the board's midpoint.
+            riderGo.transform.localPosition = new Vector3(0f, 0.63f, 0.22f);
+            Debug.Log("[RiderSetup] Rider seated at localY=0.63, localZ=0.22, yaw=-35 (snowboard stance).");
 
             Debug.Log("[RiderSetup] Instantiated Rider prefab under Player/Visual.");
 

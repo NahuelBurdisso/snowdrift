@@ -129,10 +129,26 @@ namespace Snowdrift.Game
                     _animator.enabled = false;
 
                 // Activate ragdoll (player-vs-ragdoll collision is permanently ignored in Awake)
+                // Tumble impulse: instead of a uniform velocity (stiff statue-slide), give the
+                // body a forward-flip angular velocity around its lateral axis, scaled by speed.
+                // Per-bone linear velocity = crashVel + ω×r (rigid rotation about the hips)
+                // + small jitter so limbs separate naturally. Reads as a real wipeout.
+                float speed = crashVel.magnitude;
+                var travelDir = speed > 0.1f ? crashVel / speed : _riderVisual.forward;
+                var tumbleAxis = Vector3.Cross(Vector3.up, travelDir).normalized;
+                float tumbleRate = Mathf.Clamp(speed * 0.35f, 2f, 9f); // rad/s forward flip
+                var omega = tumbleAxis * tumbleRate;
+                var pivot = _ragdollBodies[0].position; // hips (first body under RiderVisual)
+                float popUp = Mathf.Min(2.5f, speed * 0.15f); // lift so the body arcs instead of grinding
+
                 foreach (var rb in _ragdollBodies)
                 {
-                    rb.isKinematic   = false;
-                    rb.linearVelocity = crashVel;
+                    rb.isKinematic = false;
+                    rb.linearVelocity = crashVel
+                        + Vector3.Cross(omega, rb.position - pivot)
+                        + Vector3.up * popUp
+                        + Random.insideUnitSphere * speed * 0.06f;
+                    rb.angularVelocity = omega;
                 }
             }
             else

@@ -100,9 +100,14 @@ namespace Snowdrift.Game
             if (dir.sqrMagnitude > 0.01f)
                 transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dir), 8f * Time.deltaTime);
 
-            vcam.Lens.FieldOfView = Mathf.Lerp(fovMin, fovMax, Mathf.Clamp01(speed / speedForMaxFov));
+            // Smooth toward targets — board velocity zeroes instantly on crash, which
+            // used to snap FOV to fovMin and Dutch to 0 in a single frame.
+            float k = 1f - Mathf.Exp(-6f * Time.deltaTime);
+            float fovTarget = Mathf.Lerp(fovMin, fovMax, Mathf.Clamp01(speed / speedForMaxFov));
+            vcam.Lens.FieldOfView = Mathf.Lerp(vcam.Lens.FieldOfView, fovTarget, k);
             float lean = board.Airborne ? 0f : Vector3.SignedAngle(boardFwd, dir, Vector3.up) / 45f;
-            vcam.Lens.Dutch = Mathf.Clamp(lean, -1f, 1f) * dutchMax;
+            float dutchTarget = Mathf.Clamp(lean, -1f, 1f) * dutchMax;
+            vcam.Lens.Dutch = Mathf.Lerp(vcam.Lens.Dutch, dutchTarget, k);
         }
     }
 }

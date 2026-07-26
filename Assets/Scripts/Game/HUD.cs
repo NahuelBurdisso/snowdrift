@@ -1,6 +1,5 @@
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.InputSystem;
 using Snowdrift.Core;
 
 namespace Snowdrift.Game
@@ -70,8 +69,7 @@ namespace Snowdrift.Game
             {
                 pauseText.text = $"PAUSED\nBest: {PlayerPrefs.GetInt("best_score", 0):N0}  {PlayerPrefs.GetFloat("best_dist", 0f):0}m\n[Esc] resume  [R] restart  [Q] quit";
             }
-            if (paused && Keyboard.current != null && Keyboard.current.qKey.wasPressedThisFrame)
-                Application.Quit();
+            // Q-quit handled by BoardController alongside R/Esc (single input owner).
             _wasPaused = paused;
         }
     }

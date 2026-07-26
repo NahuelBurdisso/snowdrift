@@ -69,6 +69,7 @@ namespace Snowdrift.Game
             }
             if (k.rKey.wasPressedThisFrame) GameState.I.Restart();
             if (k.escapeKey.wasPressedThisFrame) GameState.I.SetPaused(!GameState.I.Paused);
+            if (GameState.I.Paused && k.qKey.wasPressedThisFrame) Application.Quit(); // all game input lives here
         }
 
         void FixedUpdate()

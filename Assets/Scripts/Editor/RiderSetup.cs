@@ -644,8 +644,18 @@ namespace Snowdrift.Editor
             // Instantiate prefab under Visual root
             var riderGo = (GameObject)PrefabUtility.InstantiatePrefab(riderPrefab, visualTransform);
             riderGo.name = "RiderVisual";
-            riderGo.transform.localPosition = new Vector3(0f, 0.08f, 0f);
             riderGo.transform.localRotation = Quaternion.identity;
+
+            // Seat offset measured at RUNTIME (Diag_Closeup_RiderAndBoard telemetry):
+            // the pose clips carry muscle curves only (no RootT), so the humanoid
+            // Animator pins the hips near the rider-transform origin and the feet hang
+            // ~0.53 below it. Bind-pose SMR bounds are useless here — the Animator
+            // overrides the pose at runtime. Lifting the rider transform moves the
+            // animated hips 1:1 (verified: +0.131 localY -> +0.130 hips). With
+            // localY = 0.211 the feet sat at -0.316 relative to the player root and
+            // the board deck top is ~+0.10, so localY = 0.211 + (0.10 - (-0.316)) = 0.63.
+            riderGo.transform.localPosition = new Vector3(0f, 0.63f, 0f);
+            Debug.Log("[RiderSetup] Rider seated at localY=0.63 (runtime-measured feet-on-deck offset).");
 
             Debug.Log("[RiderSetup] Instantiated Rider prefab under Player/Visual.");
 

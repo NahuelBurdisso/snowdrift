@@ -34,6 +34,10 @@ namespace Snowdrift.Game
         public Vector3 Velocity => _rb.linearVelocity;
         public bool Crashed { get; private set; }
         float _yawVel, _pitchVel; // air rotation momentum
+        float _stuckTime;         // seconds spent grounded at near-zero speed (wedged watchdog)
+
+        const float StuckSpeedThreshold = 0.5f; // m/s — below this we may be wedged on geometry
+        const float StuckCrashAfter     = 1.5f; // s — wedged this long => crash out to respawn
 
         void Awake()
         {
@@ -126,6 +130,17 @@ namespace Snowdrift.Game
 
             _rb.linearVelocity = vel;
 
+            // Wedged watchdog: a rider pinned against a kicker side / prop below the
+            // crash speed threshold used to freeze indefinitely (contact kills all
+            // velocity every step). Sustained near-zero speed on the ground is never
+            // valid on a slope that always descends — crash out so respawn recovers.
+            if (vel.sqrMagnitude < StuckSpeedThreshold * StuckSpeedThreshold)
+            {
+                _stuckTime += dt;
+                if (_stuckTime >= StuckCrashAfter) { _stuckTime = 0f; Crash(); return; }
+            }
+            else _stuckTime = 0f;
+
             // Align board to smoothed normal, keep yaw
             var up = n;
             // Guard BEFORE normalizing: a tiny projection normalizes to a noisy unit
@@ -185,7 +200,7 @@ namespace Snowdrift.Game
         void BecomeAirborne()
         {
             if (_airborne) return;
-            _airborne = true; _airTime = 0f; _yawVel = 0f; _pitchVel = 0f;
+            _airborne = true; _airTime = 0f; _yawVel = 0f; _pitchVel = 0f; _stuckTime = 0f;
             OnAirborneChanged?.Invoke(true);
         }
 
@@ -225,7 +240,7 @@ namespace Snowdrift.Game
             transform.SetPositionAndRotation(pos, rot);
             _rb.linearVelocity = Vector3.zero;
             _lean = 0f; _yawVel = 0f; _pitchVel = 0f;
-            _charge = 0f; _buffer = 0f; _coyote = 0f; _chargeHeld = false; _jumpRequest = false;
+            _charge = 0f; _buffer = 0f; _coyote = 0f; _chargeHeld = false; _jumpRequest = false; _stuckTime = 0f;
             _tuck = false; _drift = false; _grabL = false; _grabR = false; _airTime = 0f; NearLanding = false;
             OnAirborneChanged?.Invoke(false);
             OnRespawned?.Invoke();

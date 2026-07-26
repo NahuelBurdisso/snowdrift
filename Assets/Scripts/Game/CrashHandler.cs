@@ -64,6 +64,16 @@ namespace Snowdrift.Game
                 _ragdollBodies    = _riderVisual.GetComponentsInChildren<Rigidbody>(true);
                 _ragdollColliders = _riderVisual.GetComponentsInChildren<Collider>(true);
 
+                // PERMANENT pairwise ignore: ragdoll bone colliders ride inside/around the
+                // player capsule at all times. With collision enabled the solver depenetrates
+                // the dynamic player out of the kinematic bone cage every step — pinning it
+                // in place or launching it skyward. They must never collide with the root.
+                if (_playerCol != null)
+                {
+                    foreach (var rc in _ragdollColliders)
+                        Physics.IgnoreCollision(rc, _playerCol, true);
+                }
+
                 // Cache bind pose
                 if (_ragdollBodies != null && _ragdollBodies.Length > 0)
                 {
@@ -118,22 +128,11 @@ namespace Snowdrift.Game
                 if (_animator != null)
                     _animator.enabled = false;
 
-                // Activate ragdoll and ignore collisions with player collider
+                // Activate ragdoll (player-vs-ragdoll collision is permanently ignored in Awake)
                 foreach (var rb in _ragdollBodies)
                 {
                     rb.isKinematic   = false;
                     rb.linearVelocity = crashVel;
-                }
-
-                // Pairwise-ignore ragdoll colliders vs player collider so ragdoll
-                // doesn't push the player root around, but ragdoll still hits terrain.
-                // (Terrain chunks are on Ground layer; player is Default — ignoring
-                //  Ragdoll vs Default would also suppress ragdoll-vs-terrain since
-                //  rocks/trees are Default. Pairwise ignore is safer.)
-                if (_playerCol != null)
-                {
-                    foreach (var rc in _ragdollColliders)
-                        Physics.IgnoreCollision(rc, _playerCol, true);
                 }
             }
             else
@@ -184,16 +183,9 @@ namespace Snowdrift.Game
             if (hasRagdoll && _riderVisual != null)
             {
                 // ── Ragdoll cleanup ──────────────────────────────────────────
-                // Kinematic again
+                // Kinematic again (player-vs-ragdoll stays ignored — see Awake)
                 foreach (var rb in _ragdollBodies)
                     rb.isKinematic = true;
-
-                // Re-enable pairwise collision with player
-                if (_playerCol != null)
-                {
-                    foreach (var rc in _ragdollColliders)
-                        Physics.IgnoreCollision(rc, _playerCol, false);
-                }
 
                 // Restore bind pose for every ragdoll bone
                 ResetLocalPose();

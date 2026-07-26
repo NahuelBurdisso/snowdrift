@@ -29,6 +29,10 @@ namespace Snowdrift.Editor
         private const string ControllerPath = "Assets/Art/Animations/RiderController.controller";
         private const string ScenePath      = "Assets/Scenes/Main.unity";
 
+        // Rider material paths
+        private const string SuitMatPath = "Assets/Materials/RiderSuit.mat";
+        private const string SkinMatPath = "Assets/Materials/RiderSkin.mat";
+
         // ─────────────────────────────────────────────────────────────────────
         // Menu entry
         // ─────────────────────────────────────────────────────────────────────
@@ -242,6 +246,15 @@ namespace Snowdrift.Editor
             // ── Task 7: Build ragdoll inside the prefab instance ──
             Step2b_BuildRagdoll(riderInstance, animator);
 
+            // ── Rider materials: deep teal suit + light skin ──────────────────
+            // Contrast fix: FBX embedded material is near-white (invisible on snow).
+            // Apply a dark teal suit (#2E5266) to all body SkinnedMeshRenderers,
+            // keeping head/face meshes with a skin tone for silhouette readability.
+            EnsureDir("Assets/Materials");
+            var suitMat = LoadOrCreateRiderMat(SuitMatPath, new Color(0.180f, 0.322f, 0.400f), 0.25f); // #2E5266
+            var skinMat = LoadOrCreateRiderMat(SkinMatPath, new Color(0.894f, 0.722f, 0.596f), 0.05f); // warm skin
+            Step2c_ApplyRiderMaterials(riderInstance, suitMat, skinMat);
+
             // Save as prefab (overwrite if exists)
             var prefab = PrefabUtility.SaveAsPrefabAsset(riderInstance, PrefabPath);
             if (prefab == null)
@@ -337,8 +350,11 @@ namespace Snowdrift.Editor
                 t.gameObject.layer = ragdollLayer;
 
                 var rb = t.gameObject.AddComponent<Rigidbody>();
-                rb.mass        = massMap[bone];
-                rb.isKinematic = true;
+                rb.mass                    = massMap[bone];
+                rb.isKinematic             = true;
+                rb.maxDepenetrationVelocity = 2f;   // cap depenetration impulse to reduce explosive separation
+                rb.solverIterations        = 12;    // more solver passes keeps joints stable under violence
+                rb.solverVelocityIterations = 4;
                 rbMap[bone]    = rb;
 
                 // Collider sized plausibly to bone role
@@ -372,7 +388,13 @@ namespace Snowdrift.Editor
                 var joint = t.gameObject.AddComponent<CharacterJoint>();
                 joint.connectedBody = rbMap[parentBone];
 
-                // Reasonable swing/twist limits
+                // Projection: snaps bone back to within projectionDistance of its anchor
+                // when the solver cannot converge, preventing visible limb stretching.
+                joint.enableProjection    = true;
+                joint.projectionDistance  = 0.1f;   // max gap before projection kicks in (metres)
+                joint.projectionAngle     = 20f;    // max angular drift before angular projection (degrees)
+
+                // Reasonable swing/twist limits — tight enough to look plausible, loose enough for tumbles
                 var lowTwist  = new SoftJointLimit(); lowTwist.limit  = -40f;
                 var highTwist = new SoftJointLimit(); highTwist.limit =  40f;
                 var swing1    = new SoftJointLimit(); swing1.limit    =  60f;
@@ -384,6 +406,63 @@ namespace Snowdrift.Editor
             }
 
             Debug.Log($"[RiderSetup] Ragdoll built: {boneMap.Count} bones on layer '{LayerMask.LayerToName(ragdollLayer)}' ({ragdollLayer}).");
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Rider material helpers
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// Load existing mat or create a new URP/Lit one at the given path.
+        static Material LoadOrCreateRiderMat(string path, Color color, float smoothness)
+        {
+            var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (existing != null) return existing;
+
+            var shader = Shader.Find("Universal Render Pipeline/Lit");
+            if (shader == null) shader = Shader.Find("Standard");
+            var mat = new Material(shader);
+            mat.color = color;
+            mat.SetFloat("_Smoothness", smoothness);
+            AssetDatabase.CreateAsset(mat, path);
+            Debug.Log($"[RiderSetup] Created rider material at {path}");
+            return mat;
+        }
+
+        /// Assign suitMat to all SkinnedMeshRenderers on the rider.
+        /// If the FBX has a separate head/face mesh (name contains "head" or "face"),
+        /// assign skinMat to it instead for silhouette readability.
+        static void Step2c_ApplyRiderMaterials(GameObject riderInstance, Material suitMat, Material skinMat)
+        {
+            if (suitMat == null)
+            {
+                Debug.LogWarning("[RiderSetup] suitMat is null — skipping material assignment.");
+                return;
+            }
+
+            var smrs = riderInstance.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+            if (smrs.Length == 0)
+            {
+                Debug.LogWarning("[RiderSetup] No SkinnedMeshRenderers found on rider — material not applied.");
+                return;
+            }
+
+            int suitCount = 0, skinCount = 0;
+            foreach (var smr in smrs)
+            {
+                string lname = smr.gameObject.name.ToLowerInvariant();
+                bool isHead  = lname.Contains("head") || lname.Contains("face");
+                Material target = (isHead && skinMat != null) ? skinMat : suitMat;
+
+                // Replace every material slot with the chosen material
+                var slots = new Material[smr.sharedMaterials.Length];
+                for (int i = 0; i < slots.Length; i++)
+                    slots[i] = target;
+                smr.sharedMaterials = slots;
+
+                if (isHead) skinCount++; else suitCount++;
+            }
+
+            Debug.Log($"[RiderSetup] Rider materials applied: {suitCount} suit slot(s), {skinCount} skin slot(s).");
         }
 
         // ─────────────────────────────────────────────────────────────────────

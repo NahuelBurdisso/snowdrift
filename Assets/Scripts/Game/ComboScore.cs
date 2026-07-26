@@ -15,15 +15,19 @@ namespace Snowdrift.Game
 
         void Awake()
         {
-            tricks.OnTrickLanded += (r, grade, _) =>
-            {
-                if (grade == LandingGrade.Clean) { if (r.Total > 0) Logic.OnCleanLanding(r.Total); }
-                else Logic.OnSloppyLanding();
-            };
-            board.OnCrashed += () => Logic.OnCrash();
+            tricks.OnTrickLanded += HandleTrickLanded;
+            board.OnCrashed += HandleCrashed;
             NearMissZone.Passed += OnNearMiss; // zones spawned by TerrainStream (Task 9)
             GameState.I.OnRestart += HandleRestart;
         }
+
+        void HandleTrickLanded(TrickResult r, LandingGrade grade, float _)
+        {
+            if (grade == LandingGrade.Clean) { if (r.Total > 0) Logic.OnCleanLanding(r.Total); }
+            else Logic.OnSloppyLanding();
+        }
+
+        void HandleCrashed() => Logic.OnCrash();
 
         void HandleRestart()
         {
@@ -35,6 +39,8 @@ namespace Snowdrift.Game
 
         void OnDestroy()
         {
+            if (tricks != null) tricks.OnTrickLanded -= HandleTrickLanded;
+            if (board != null) board.OnCrashed -= HandleCrashed;
             NearMissZone.Passed -= OnNearMiss;
             if (GameState.I != null) GameState.I.OnRestart -= HandleRestart;
         }

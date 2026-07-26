@@ -36,13 +36,6 @@ namespace Snowdrift.Game
             if (board.GrabHeld) _tracker.TickGrab(Time.fixedDeltaTime, tuning.grabScorePerSec);
         }
 
-        public static string Describe(TrickResult r)
-        {
-            var parts = new System.Collections.Generic.List<string>();
-            if (r.Spin180s > 0) parts.Add($"{r.Spin180s * 180}");
-            if (r.Flips > 0) parts.Add(r.Flips == 1 ? "Flip" : $"{r.Flips}x Flip");
-            if (r.GrabScore > 0) parts.Add("Grab");
-            return string.Join(" + ", parts);
-        }
+        public static string Describe(TrickResult r) => TrickDescriber.Describe(r);
     }
 }

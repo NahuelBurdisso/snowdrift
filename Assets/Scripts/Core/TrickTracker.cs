@@ -12,6 +12,22 @@ namespace Snowdrift.Core
         public int Total => SpinScore + FlipScore + GrabScore;
     }
 
+    public static class TrickDescriber
+    {
+        /// <summary>
+        /// Returns a human-readable label for a <see cref="TrickResult"/>,
+        /// e.g. "360 + Flip + Grab". Returns an empty string when all scores are zero.
+        /// </summary>
+        public static string Describe(TrickResult r)
+        {
+            var parts = new System.Collections.Generic.List<string>();
+            if (r.Spin180s > 0) parts.Add($"{r.Spin180s * 180}");
+            if (r.Flips > 0) parts.Add(r.Flips == 1 ? "Flip" : $"{r.Flips}x Flip");
+            if (r.GrabScore > 0) parts.Add("Grab");
+            return string.Join(" + ", parts);
+        }
+    }
+
     public class TrickTracker
     {
         bool _airborne;

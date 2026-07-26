@@ -81,6 +81,14 @@ namespace Snowdrift.Game
             _chunks.Add(index, chunk);
         }
 
+        // Deterministic 0..1 hash from a float seed — stable across chunk rebuilds
+        // (same slopeZ always yields the same yaw/scale variance).
+        static float Hash01(float v)
+        {
+            float s = Mathf.Sin(v * 12.9898f + 78.233f) * 43758.5453f;
+            return s - Mathf.Floor(s);
+        }
+
         GameObject SpawnFeature(Vector3 pos, float slopeZ, int kind)
         {
             GameObject go;
@@ -120,7 +128,8 @@ namespace Snowdrift.Game
                     // so the world sphere center lands at pos.y + 0.5, matching the primitive fallback
                     // (which spawns at pos+0.5Y with collider center (0,0,0)).
                     int idx = System.Math.Abs(Mathf.RoundToInt(slopeZ * 7)) % pool.Length;
-                    go = Object.Instantiate(pool[idx], pos, Quaternion.identity);
+                    go = Object.Instantiate(pool[idx], pos + Vector3.down * 0.1f,
+                        Quaternion.Euler(0f, Hash01(slopeZ * 2.3f) * 360f, 0f));
                     go.name = "rock_prop";
                 }
                 else
@@ -143,8 +152,16 @@ namespace Snowdrift.Game
                 if (pool != null && pool.Length > 0 && pool[0] != null)
                 {
                     int idx = System.Math.Abs(Mathf.RoundToInt(slopeZ * 13)) % pool.Length;
-                    go = Object.Instantiate(pool[idx], pos + Vector3.up * 0f, Quaternion.identity);
+                    // Deterministic variance from slopeZ: random yaw + visual scale so
+                    // identical prefabs don't read as copy-paste. Sink 0.2m hides the
+                    // flat-shaded mesh deviating from Field.Height between vertices.
+                    float h01 = Hash01(slopeZ * 1.7f);
+                    go = Object.Instantiate(pool[idx], pos + Vector3.down * 0.2f,
+                        Quaternion.Euler(0f, h01 * 360f, 0f));
                     go.name = "tree_prop";
+                    var meshChild = go.transform.Find("Mesh");
+                    if (meshChild != null)
+                        meshChild.localScale *= 0.85f + Hash01(slopeZ * 3.1f) * 0.4f; // 0.85..1.25
                 }
                 else
                 {
@@ -170,22 +187,26 @@ namespace Snowdrift.Game
 
             float slopeZStart = chunkIndex * TerrainChunk.Length;
             var rng = new System.Random(chunkIndex * 31337); // deterministic per chunk, independent of obstacle RNG
-            int count = 4 + rng.Next(3); // 4–6 trees
+            int count = 10 + rng.Next(6); // 10–15 trees — dense forest band on both edges
 
             for (int i = 0; i < count; i++)
             {
                 float slopeZ = slopeZStart + (float)rng.NextDouble() * TerrainChunk.Length;
-                // x: corridorEdge + 8..20m on alternating sides
-                float offsetX = 8f + (float)rng.NextDouble() * 12f; // 8..20
+                // x: corridorEdge + 2..26m on alternating sides (band hugs the playfield edge)
+                float offsetX = 2f + (float)rng.NextDouble() * 24f; // 2..26
                 float side    = rng.Next(2) == 0 ? -1f : 1f;
                 float x       = side * (TerrainChunk.Width / 2f + offsetX);
 
-                float worldY  = Field.Height(x, slopeZ) - _oyOff;
+                float worldY  = Field.Height(x, slopeZ) - _oyOff - 0.2f; // sink base into snow
                 float worldZ  = slopeZ - _ozOff;
 
                 var pos = new Vector3(x, worldY, worldZ);
-                var go  = Object.Instantiate(borderTreePrefab, pos, Quaternion.identity);
+                float yaw = (float)rng.NextDouble() * 360f;
+                var go  = Object.Instantiate(borderTreePrefab, pos, Quaternion.Euler(0f, yaw, 0f));
                 go.name = "border_pine";
+                var meshChild = go.transform.Find("Mesh");
+                if (meshChild != null)
+                    meshChild.localScale *= 0.7f + (float)rng.NextDouble() * 0.6f; // 0.7..1.3
                 go.transform.SetParent(parentTransform, true);
             }
         }

@@ -48,7 +48,7 @@ namespace Snowdrift.Game
                            System.Func<Vector3, float, int, GameObject> spawn, int difficulty)
         {
             var rng = new System.Random(Mathf.RoundToInt(slopeZ / Length));
-            int features = Mathf.Min(2 + difficulty, 10);
+            int features = Mathf.Min(3 + difficulty, 12);
             for (int i = 0; i < features; i++)
             {
                 float sz = slopeZ + (float)rng.NextDouble() * Length;

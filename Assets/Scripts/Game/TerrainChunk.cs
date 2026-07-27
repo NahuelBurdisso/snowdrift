@@ -10,7 +10,7 @@ namespace Snowdrift.Game
 
         // slopeZ = slope-space z of chunk start; originOffset = current world offset from origin shifts.
         public void Build(SlopeField field, float slopeZ, float originZOffset, float originYOffset,
-                          Material mat, System.Func<Vector3, float, int, GameObject> spawnFeature, int difficulty)
+                          Material mat, System.Func<Vector3, float, int, GameObject> spawnFeature, int featureCount)
         {
             int nx = Mathf.RoundToInt(Width / Res), nz = Mathf.RoundToInt(Length / Res);
             var verts = new Vector3[(nx + 1) * (nz + 1)];
@@ -41,14 +41,14 @@ namespace Snowdrift.Game
             GetComponent<MeshRenderer>().sharedMaterial = mat;
             gameObject.layer = LayerMask.NameToLayer("Ground");
 
-            SpawnFeatures(field, slopeZ, originZOffset, originYOffset, spawnFeature, difficulty);
+            SpawnFeatures(field, slopeZ, originZOffset, originYOffset, spawnFeature, featureCount);
         }
 
         void SpawnFeatures(SlopeField field, float slopeZ, float ozOff, float oyOff,
-                           System.Func<Vector3, float, int, GameObject> spawn, int difficulty)
+                           System.Func<Vector3, float, int, GameObject> spawn, int featureCount)
         {
             var rng = new System.Random(Mathf.RoundToInt(slopeZ / Length));
-            int features = Mathf.Min(3 + difficulty, 12);
+            int features = featureCount;
             for (int i = 0; i < features; i++)
             {
                 float sz = slopeZ + (float)rng.NextDouble() * Length;

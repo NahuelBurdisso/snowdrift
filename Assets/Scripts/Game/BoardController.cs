@@ -33,6 +33,8 @@ namespace Snowdrift.Game
         public float PitchDegPerFix { get; private set; }
         public Vector3 Velocity => _rb.linearVelocity;
         public bool Crashed { get; private set; }
+        /// <summary>Distance-based difficulty multiplier applied to soft/tuck speed caps (set by TerrainStream).</summary>
+        public float SpeedCapScale = 1f;
         float _yawVel, _pitchVel; // air rotation momentum
         float _stuckTime;         // seconds spent grounded at near-zero speed (wedged watchdog)
 
@@ -129,7 +131,7 @@ namespace Snowdrift.Game
             // collapses to zero — fall back to world forward to avoid damping all velocity.
             var fwdOnPlane = fwdProjected.sqrMagnitude >= 1e-4f ? fwdProjected.normalized : transform.forward;
             vel = CarveMath.ApplyGrip(vel, fwdOnPlane, grip, tuning.gripRedirect, dt);
-            vel = CarveMath.ApplyDrag(vel, _tuck ? tuning.tuckSpeedCap : tuning.softSpeedCap, tuning.dragK, dt);
+            vel = CarveMath.ApplyDrag(vel, (_tuck ? tuning.tuckSpeedCap : tuning.softSpeedCap) * SpeedCapScale, tuning.dragK, dt);
 
             // Stick: project onto plane + stick accel, unless crest angle exceeds release threshold
             float crest = Vector3.Angle(Vector3.ProjectOnPlane(vel, n), vel);

@@ -48,6 +48,8 @@ namespace Snowdrift.Game
             Distance.Advance(Mathf.Max(0f, z - _lastZ));
             _lastZ = z;
 
+            board.SpeedCapScale = DifficultyCurve.SpeedCapMult(Distance.TrueDistance);
+
             int cur = Mathf.FloorToInt(z / TerrainChunk.Length);
             for (int i = cur - 2; i <= cur + 4; i++) EnsureChunk(i);
             _dead.Clear();
@@ -74,8 +76,8 @@ namespace Snowdrift.Game
             var go = new GameObject($"chunk_{index}");
             go.transform.SetParent(transform);
             var chunk = go.AddComponent<TerrainChunk>();
-            int difficulty = Mathf.FloorToInt(index * TerrainChunk.Length / 500f);
-            chunk.Build(Field, index * TerrainChunk.Length, _ozOff, _oyOff, snowMat, SpawnFeature, difficulty);
+            int featureCount = DifficultyCurve.FeatureCount(index * TerrainChunk.Length);
+            chunk.Build(Field, index * TerrainChunk.Length, _ozOff, _oyOff, snowMat, SpawnFeature, featureCount);
             // Spawn decoration-only border trees parented to this chunk (destroyed with it)
             SpawnBorderTrees(go.transform, index);
             _chunks.Add(index, chunk);

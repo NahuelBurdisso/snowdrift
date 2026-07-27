@@ -591,6 +591,59 @@ namespace Snowdrift.Editor
             speedBarRect.anchoredPosition = new Vector2(0f, 5f);
             speedBarRect.sizeDelta = new Vector2(0f, 8f);
 
+            // ── Title panel (frozen boot screen; FlowUI toggles it) ──
+            var titlePanel = CreateOverlayPanel(canvasGo, "TitlePanel", new Color(0.03f, 0.06f, 0.12f, 0.90f));
+            var titleTxt = CreateUIText(titlePanel, "TitleText", "SNOWDRIFT", font, 110,
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0f, 190f), new Vector2(1200f, 140f));
+            titleTxt.alignment = TextAnchor.MiddleCenter;
+            titleTxt.fontStyle = FontStyle.Bold;
+            var subTxt = CreateUIText(titlePanel, "SubtitleText", "endless alpine freeride", font, 28,
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0f, 105f), new Vector2(800f, 40f));
+            subTxt.alignment = TextAnchor.MiddleCenter;
+            subTxt.color = new Color(1f, 1f, 1f, 0.75f);
+            var controlsTxt = CreateUIText(titlePanel, "ControlsText",
+                "A / D  carve        SPACE  hold + release to jump\n" +
+                "W  tuck        SHIFT  drift        J / K  grabs\n" +
+                "S / W in air  flip        ESC  pause        R  restart",
+                font, 22,
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0f, -30f), new Vector2(900f, 110f));
+            controlsTxt.alignment = TextAnchor.MiddleCenter;
+            controlsTxt.color = new Color(1f, 1f, 1f, 0.85f);
+            var titleBestTxt = CreateUIText(titlePanel, "BestText", "", font, 24,
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0f, -120f), new Vector2(700f, 40f));
+            titleBestTxt.alignment = TextAnchor.MiddleCenter;
+            var titleHintTxt = CreateUIText(titlePanel, "HintText", "PRESS SPACE TO RIDE", font, 34,
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0f, -210f), new Vector2(700f, 60f));
+            titleHintTxt.alignment = TextAnchor.MiddleCenter;
+            titleHintTxt.fontStyle = FontStyle.Bold;
+
+            // ── Results panel (post-crash freeze-frame; FlowUI toggles it) ──
+            var resultsPanel = CreateOverlayPanel(canvasGo, "ResultsPanel", new Color(0.03f, 0.06f, 0.12f, 0.90f));
+            var resultsTxt = CreateUIText(resultsPanel, "ResultsText", "", font, 40,
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0f, 40f), new Vector2(1000f, 320f));
+            resultsTxt.alignment = TextAnchor.MiddleCenter;
+            var resultsHintTxt = CreateUIText(resultsPanel, "ResultsHintText",
+                "SPACE  ride again        Q  quit", font, 28,
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0f, -180f), new Vector2(700f, 50f));
+            resultsHintTxt.alignment = TextAnchor.MiddleCenter;
+
+            // Drop shadows: white text over bright snow needs separation even on the dim panel
+            AddTextShadow(titleTxt); AddTextShadow(subTxt); AddTextShadow(controlsTxt);
+            AddTextShadow(titleBestTxt); AddTextShadow(titleHintTxt);
+            AddTextShadow(resultsTxt); AddTextShadow(resultsHintTxt);
+
+            // Both panels saved inactive: FlowUI.Awake applies the real phase at runtime,
+            // and edit-mode renders (ScreenshotTool) must not be covered by the title overlay.
+            titlePanel.SetActive(false);
+            resultsPanel.SetActive(false);
+
             // EventSystem
             var eventSysGo = new GameObject("EventSystem");
             eventSysGo.AddComponent<UnityEngine.EventSystems.EventSystem>();
@@ -611,6 +664,17 @@ namespace Snowdrift.Editor
             hud.trickText = trickTxt;
             hud.pauseText = pauseTxt;
             hud.speedBar = speedBarImg;
+
+            // ── FlowUI component (title/results overlays) ──
+            var flowUi = canvasGo.AddComponent<FlowUI>();
+            flowUi.score = comboScore;
+            flowUi.terrain = terrainStream;
+            flowUi.titlePanel = titlePanel;
+            flowUi.resultsPanel = resultsPanel;
+            flowUi.titleBestText = titleBestTxt;
+            flowUi.titleHintText = titleHintTxt;
+            flowUi.resultsText = resultsTxt;
+            flowUi.resultsHintText = resultsHintTxt;
 
             // ── Skybox material ──
             const string skyMatPath = "Assets/Materials/SkyGradient.mat";
@@ -719,6 +783,29 @@ namespace Snowdrift.Editor
             AssetDatabase.CreateAsset(mat, path);
             Debug.Log("[ProjectSetup] Created ParticleSnow.mat at " + path);
             return mat;
+        }
+
+        static void AddTextShadow(Text t)
+        {
+            var sh = t.gameObject.AddComponent<UnityEngine.UI.Shadow>();
+            sh.effectColor = new Color(0f, 0f, 0f, 0.8f);
+            sh.effectDistance = new Vector2(2f, -2f);
+        }
+
+        /// <summary>Full-stretch dim overlay panel under the canvas (for title/results screens).</summary>
+        static GameObject CreateOverlayPanel(GameObject canvas, string name, Color bg)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(canvas.transform, false);
+            var img = go.AddComponent<Image>();
+            img.color = bg;
+            img.raycastTarget = false;
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            return go;
         }
 
         static Text CreateUIText(GameObject parent, string name, string defaultText,

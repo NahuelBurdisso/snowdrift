@@ -53,6 +53,16 @@ namespace Snowdrift.Game
         void Update() // input sampling (Input System)
         {
             var k = Keyboard.current; if (k == null) return;
+
+            // Flow gating: outside Riding only start/quit are live (single input owner).
+            var gs = GameState.I;
+            if (gs != null && gs.Phase != RunPhase.Riding)
+            {
+                if (k.spaceKey.wasPressedThisFrame || k.rKey.wasPressedThisFrame) gs.StartRun();
+                if (k.qKey.wasPressedThisFrame) Application.Quit();
+                return;
+            }
+
             _steerInput = (k.dKey.isPressed ? 1f : 0f) - (k.aKey.isPressed ? 1f : 0f)
                         + (k.rightArrowKey.isPressed ? 1f : 0f) - (k.leftArrowKey.isPressed ? 1f : 0f);
             _flipInput = (k.sKey.isPressed ? 1f : 0f) - (k.wKey.isPressed ? 1f : 0f);
@@ -231,6 +241,7 @@ namespace Snowdrift.Game
         {
             Crashed = true;
             NearLanding = false;
+            if (GameState.I != null) GameState.I.NotifyCrash(); // Riding -> Crashed (null in offline test scenes)
             OnCrashed?.Invoke();               // CrashHandler reads Velocity for the tumble first
             _rb.linearVelocity = Vector3.zero; // then root freezes until respawn
         }

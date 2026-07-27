@@ -179,6 +179,7 @@ namespace Snowdrift.Game
         {
             StopAllCoroutines();
             // DoRespawn handles both ragdoll and fallback paths; it guards _crashed itself.
+            // skipSpawnCall: TerrainStream.Regenerate owns the respawn during a restart.
             if (_crashed)
                 DoRespawn(skipSpawnCall: true);
         }
@@ -187,7 +188,11 @@ namespace Snowdrift.Game
         {
             yield return new WaitForSeconds(tuning.respawnDelay);
             if (!_crashed) yield break;
-            DoRespawn(skipSpawnCall: false);
+            // Run over: freeze-frame the wipeout behind the results panel.
+            // Cleanup + respawn happen on the next StartRun via HandleRestart.
+            // Fallback (no GameState in offline test scenes): old auto-respawn behavior.
+            if (GameState.I != null) GameState.I.ShowResults();
+            else DoRespawn(skipSpawnCall: false);
         }
 
         void DoRespawn(bool skipSpawnCall)
@@ -330,8 +335,9 @@ namespace Snowdrift.Game
             yield return new WaitForSeconds(tuning.respawnDelay);
             // If HandleRestart already called DoRespawn, _tumbleBody was DestroyImmediate'd — bail out.
             if (_tumbleBody == null) yield break;
-            // Delegate all cleanup to DoRespawn so there is exactly one cleanup path.
-            DoRespawn(skipSpawnCall: false);
+            // Run over — same flow as the ragdoll path (cleanup deferred to StartRun).
+            if (GameState.I != null) GameState.I.ShowResults();
+            else DoRespawn(skipSpawnCall: false); // offline test scenes: old auto-respawn
         }
     }
 }

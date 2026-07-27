@@ -30,6 +30,9 @@ namespace Snowdrift.PlayModeTests
         {
             var op = SceneManager.LoadSceneAsync("Main");
             while (!op.isDone) yield return null;
+            // Boot lands on the frozen Title phase — start the run like a player would.
+            yield return null;
+            GameState.I.StartRun();
             yield return new WaitForFixedUpdate();
             yield return null;
         }
@@ -84,7 +87,7 @@ namespace Snowdrift.PlayModeTests
             var board = Object.FindAnyObjectByType<BoardController>();
             Assert.IsNotNull(board);
 
-            yield return new WaitForSeconds(3f);
+            yield return new WaitForSecondsRealtime(3f); // realtime: stall-proof against Results freeze
 
             string dir = System.IO.Path.GetFullPath(
                 System.IO.Path.Combine(Application.dataPath, "..", "Screenshots"));
@@ -181,7 +184,7 @@ namespace Snowdrift.PlayModeTests
             var board = Object.FindAnyObjectByType<BoardController>();
             Assert.IsNotNull(board);
 
-            yield return new WaitForSeconds(1f);
+            yield return new WaitForSecondsRealtime(1f);
             LogRagdollOverlap(board);
 
             var sb = new StringBuilder("[Diag] t | y | velY | speed | airborne | crashed\n");
@@ -189,6 +192,11 @@ namespace Snowdrift.PlayModeTests
 
             for (int t = 0; t <= 30; t++)
             {
+                // A crash now freezes the game on the Results screen (timeScale 0) and
+                // [Timeout] counts scaled time — restart immediately so telemetry continues.
+                if (GameState.I != null && GameState.I.Phase == Snowdrift.Core.RunPhase.Results)
+                    GameState.I.StartRun();
+
                 var p = board.transform.position;
                 var v = board.Velocity;
                 maxY = Mathf.Max(maxY, p.y);
@@ -199,7 +207,7 @@ namespace Snowdrift.PlayModeTests
                 if (t > 0 && t % 6 == 0 && !board.Crashed && !board.Airborne)
                     InjectJump(board);
 
-                yield return new WaitForSeconds(1f);
+                yield return new WaitForSecondsRealtime(1f); // realtime: stall-proof against Results freeze
             }
 
             Debug.Log(sb.ToString());

@@ -72,6 +72,9 @@ namespace Snowdrift.PlayModeTests
         {
             var op = SceneManager.LoadSceneAsync("Main");
             while (!op.isDone) yield return null;
+            // Boot lands on the frozen Title phase — start the run like a player would.
+            yield return null;
+            GameState.I.StartRun();
             yield return new WaitForFixedUpdate();
             yield return null;
         }
@@ -199,7 +202,7 @@ namespace Snowdrift.PlayModeTests
             Assert.IsNotNull(board, "BoardController not found in Main scene");
 
             // Let the board build up speed and the HUD counters tick for 3 s.
-            yield return new WaitForSeconds(3f);
+            yield return new WaitForSecondsRealtime(3f);
 
             Assert.IsFalse(board.Crashed, "Board crashed before grounded capture");
 
@@ -230,7 +233,7 @@ namespace Snowdrift.PlayModeTests
 
             // Let the board reach the slope and stabilise so the ground sensor is confident.
             // 2 s is enough for TerrainStream to stream the first chunk under the board.
-            yield return new WaitForSeconds(2f);
+            yield return new WaitForSecondsRealtime(2f);
 
             Assert.IsFalse(board.Crashed, "Board crashed before jump capture");
 
@@ -240,7 +243,7 @@ namespace Snowdrift.PlayModeTests
             // Wait one fixed step for TryPop to fire, then a few frames for the board
             // to visually separate from the surface.
             yield return new WaitForFixedUpdate();
-            yield return new WaitForSeconds(0.35f); // near jump apex — board clearly separated from surface
+            yield return new WaitForSecondsRealtime(0.35f); // near jump apex — board clearly separated from surface
 
             // One frame for LateUpdate / camera to track new position.
             yield return null;
@@ -276,7 +279,7 @@ namespace Snowdrift.PlayModeTests
             Assert.IsNotNull(board, "BoardController not found in Main scene");
 
             // Let the board stabilise and build speed before the crash.
-            yield return new WaitForSeconds(2f);
+            yield return new WaitForSecondsRealtime(2f);
 
             Assert.IsFalse(board.Crashed, "Board crashed unexpectedly before forced crash");
 
@@ -292,11 +295,62 @@ namespace Snowdrift.PlayModeTests
             // Let the ragdoll visibly crumple/tumble before capturing — an immediate
             // capture shows the rider still upright in bind pose, which reads as a
             // normal run rather than a crash.
-            yield return new WaitForSeconds(0.6f);
+            yield return new WaitForSecondsRealtime(0.6f);
 
             string outputDir = ResolveOutputDir();
             bool ok = WriteScreenshot(outputDir, "gameplay_crash");
             Assert.IsTrue(ok, "gameplay_crash.png write failed or image is empty.");
+        }
+
+        // ── Test 4: title screen (frozen boot phase) ─────────────────────────────
+
+        [UnityTest]
+        [Timeout(30000)]
+        public IEnumerator Capture_TitleScreen()
+        {
+            // Do NOT StartRun — boot stays on the frozen Title phase.
+            var op = SceneManager.LoadSceneAsync("Main");
+            while (!op.isDone) yield return null;
+            yield return null; // FlowUI.Awake activates the title panel
+            yield return null; // one layout/render pass
+
+            Assert.AreEqual(Snowdrift.Core.RunPhase.Title, GameState.I.Phase, "boot phase should be Title");
+            Assert.AreEqual(0f, Time.timeScale, 1e-4f, "game should be frozen on the title screen");
+
+            bool ok = WriteScreenshot(ResolveOutputDir(), "flow_title");
+            Assert.IsTrue(ok, "flow_title.png write failed or image is empty.");
+
+            GameState.I.StartRun(); // leave the scene in a sane state for the next test
+        }
+
+        // ── Test 5: results screen after a crash ────────────────────────────────
+
+        [UnityTest]
+        [Timeout(30000)]
+        public IEnumerator Capture_ResultsScreen()
+        {
+            yield return LoadMainScene();
+
+            var board = FindBoard();
+            Assert.IsNotNull(board, "BoardController not found in Main scene");
+
+            yield return new WaitForSecondsRealtime(2f);
+            Assert.IsFalse(board.Crashed, "Board crashed unexpectedly before forced crash");
+
+            board.Crash();
+
+            // Wait (realtime — game freezes when Results shows) for the flow to land on Results.
+            float deadline = Time.realtimeSinceStartup + 10f;
+            while (GameState.I.Phase != Snowdrift.Core.RunPhase.Results && Time.realtimeSinceStartup < deadline)
+                yield return null;
+
+            Assert.AreEqual(Snowdrift.Core.RunPhase.Results, GameState.I.Phase, "flow should reach Results after crash");
+            yield return null; // one frame for FlowUI text + layout
+
+            bool ok = WriteScreenshot(ResolveOutputDir(), "flow_results");
+            Assert.IsTrue(ok, "flow_results.png write failed or image is empty.");
+
+            GameState.I.StartRun(); // unfreeze for teardown
         }
     }
 }

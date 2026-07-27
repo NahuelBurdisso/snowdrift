@@ -30,7 +30,10 @@ namespace Snowdrift.PlayModeTests
         {
             var op = SceneManager.LoadSceneAsync("Main");
             while (!op.isDone) yield return null;
-            // Give Start() / Awake() one frame and one physics step to run
+            // Boot lands on the Title phase (timeScale 0) — start the run like a player would.
+            yield return null; // let Awake() run everywhere first
+            GameState.I.StartRun();
+            // Give Start() one frame and one physics step to run
             yield return new WaitForFixedUpdate();
             yield return null;
         }
@@ -64,7 +67,7 @@ namespace Snowdrift.PlayModeTests
             Vector3 startPos = board.transform.position;
 
             // Let the board slide downhill for 10 real seconds of game time
-            yield return new WaitForSeconds(10f);
+            yield return new WaitForSecondsRealtime(10f);
 
             // Board must still exist and not be in a crashed state
             Assert.IsNotNull(board, "BoardController destroyed during run");
@@ -99,7 +102,7 @@ namespace Snowdrift.PlayModeTests
             Assert.IsNotNull(crashHandler, "CrashHandler not found");
 
             // Let the board stabilise on the slope before crashing it
-            yield return new WaitForSeconds(2f);
+            yield return new WaitForSecondsRealtime(2f);
 
             // Grab animator reference (may be null if no ragdoll prefab)
             // CrashHandler caches _animator internally; we find the Animator independently
@@ -123,13 +126,27 @@ namespace Snowdrift.PlayModeTests
             if (riderAnimator != null)
                 Assert.IsFalse(riderAnimator.enabled, "Animator should be disabled after crash (ragdoll path)");
 
-            // ── Respawn ──
-            // respawnDelay default is 1s; add generous margin for CI timing
+            // ── Run over: flow reaches the frozen Results screen ──
+            // respawnDelay default is 1s; poll on unscaled time because ShowResults
+            // sets timeScale to 0 (scaled WaitForSeconds would stall forever).
             float respawnDelay = 1f;
             if (crashHandler.tuning != null)
                 respawnDelay = crashHandler.tuning.respawnDelay;
 
-            yield return new WaitForSeconds(respawnDelay + 2f);
+            float deadline = Time.realtimeSinceStartup + respawnDelay + 8f;
+            while (GameState.I.Phase != RunPhase.Results && Time.realtimeSinceStartup < deadline)
+                yield return null;
+
+            Assert.AreEqual(RunPhase.Results, GameState.I.Phase, "flow should reach Results after crash");
+            Assert.AreEqual(0f, Time.timeScale, 1e-4f, "game should be frozen on the results screen");
+
+            // ── New run from Results ──
+            GameState.I.StartRun();
+            Assert.AreEqual(RunPhase.Riding, GameState.I.Phase, "StartRun from Results should enter Riding");
+            Assert.AreEqual(1f, Time.timeScale, 1e-4f, "Time.timeScale should be 1 while riding");
+            yield return new WaitForFixedUpdate();
+            yield return null;
+            yield return new WaitForSecondsRealtime(1f);
 
             // Core state reset
             Assert.IsFalse(board.Crashed, "board.Crashed should be false after respawn");
@@ -185,7 +202,7 @@ namespace Snowdrift.PlayModeTests
             Assert.IsNotNull(board, "BoardController not found");
 
             // Let board build up some speed before pausing
-            yield return new WaitForSeconds(2f);
+            yield return new WaitForSecondsRealtime(2f);
 
             Assert.IsFalse(board.Crashed, "Board crashed unexpectedly before pause test");
 
@@ -206,7 +223,7 @@ namespace Snowdrift.PlayModeTests
             Assert.AreEqual(1f, Time.timeScale, 1e-4f, "Time.timeScale should be 1 after unpause");
 
             // Let board run again and verify it moves (proves physics resumed)
-            yield return new WaitForSeconds(2f);
+            yield return new WaitForSecondsRealtime(2f);
 
             Assert.IsFalse(board.Crashed, "Board crashed after unpause");
 
@@ -239,7 +256,7 @@ namespace Snowdrift.PlayModeTests
             Assert.IsNotNull(board, "BoardController not found");
 
             // Let the board run for 3 seconds
-            yield return new WaitForSeconds(3f);
+            yield return new WaitForSecondsRealtime(3f);
 
             Assert.IsFalse(board.Crashed, "Board crashed unexpectedly before restart");
 
@@ -250,7 +267,7 @@ namespace Snowdrift.PlayModeTests
             // Wait for Regenerate + Respawn to settle (TerrainStream.Regenerate runs synchronously)
             yield return new WaitForFixedUpdate();
             yield return null;
-            yield return new WaitForSeconds(2f);
+            yield return new WaitForSecondsRealtime(2f);
 
             Assert.IsNotNull(board, "BoardController destroyed after Restart()");
             Assert.IsFalse(board.Crashed, "board.Crashed should be false after Restart()");
@@ -294,7 +311,7 @@ namespace Snowdrift.PlayModeTests
             Assert.IsNotNull(terrain, "TerrainStream not found");
 
             // Let the board stabilise for one second before we arm the low threshold.
-            yield return new WaitForSeconds(1f);
+            yield return new WaitForSecondsRealtime(1f);
             Assert.IsFalse(board.Crashed, "Board crashed during warm-up");
 
             // Sample distance before forcing the shift.
@@ -307,14 +324,15 @@ namespace Snowdrift.PlayModeTests
 
             // Wait until the shift fires (board.z will snap back near 0) or timeout.
             // We poll every physics step; give up to 15 real seconds.
-            float elapsed = 0f;
+            // Poll per rendered frame on the realtime clock — WaitForFixedUpdate would
+            // hang forever if a crash freezes the game (timeScale 0) mid-poll.
+            float pollDeadline = Time.realtimeSinceStartup + 15f;
             float boardZBeforeShift = board.transform.position.z;
             bool shiftObserved = false;
 
-            while (elapsed < 15f)
+            while (Time.realtimeSinceStartup < pollDeadline)
             {
-                yield return new WaitForFixedUpdate();
-                elapsed += Time.fixedDeltaTime;
+                yield return null;
 
                 // After the origin shift, board.z must be significantly smaller than it was
                 // at the moment the threshold was armed.  A drop of > 5 m is unambiguous.

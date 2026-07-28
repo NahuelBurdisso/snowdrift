@@ -185,6 +185,19 @@ namespace Snowdrift.Editor
             var kickerLipMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/KickerLip.mat");
             var playerMat    = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Player.mat");
 
+            // Re-tune snow albedo every build: near-white #F2F5F7 blew out under sun + warm fog
+            // (zero shading contrast). Cooler/darker base lets directional light model the terrain.
+            if (snowMat != null)
+            {
+                snowMat.color = new Color(0.80f, 0.85f, 0.93f);
+                EditorUtility.SetDirty(snowMat);
+            }
+            if (kickerMat != null)
+            {
+                kickerMat.color = new Color(0.82f, 0.86f, 0.94f); // same family, slightly brighter to pop
+                EditorUtility.SetDirty(kickerMat);
+            }
+
             // Audio clips (optional)
             var windClip  = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/wind.wav");
             var carveClip = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/carve.wav");
@@ -204,6 +217,23 @@ namespace Snowdrift.Editor
             // At yaw -150 the sun is ~120 degrees to the right of the camera forward (+Z), giving strong
             // cross-lighting visible from every capture angle.
             lightGo.transform.rotation = Quaternion.Euler(45f, -150f, 0f);
+            // Soft shadows give the flat-shaded terrain its depth read (crest/trough separation).
+            light.shadows = LightShadows.Soft;
+            light.shadowStrength = 0.55f; // partial — snow bounces a lot of light, pitch-black shadows look wrong
+
+            // ── URP asset: enable HDR + main-light shadows (asset created in Step1) ──
+            var urpAsset = AssetDatabase.LoadAssetAtPath<UniversalRenderPipelineAsset>("Assets/Settings/SnowdriftURP.asset");
+            if (urpAsset != null)
+            {
+                urpAsset.supportsHDR = true;
+                urpAsset.shadowDistance = 150f;
+                var urpSo = new SerializedObject(urpAsset);
+                urpSo.FindProperty("m_MainLightShadowsSupported").boolValue = true;
+                urpSo.FindProperty("m_SoftShadowsSupported").boolValue = true;
+                urpSo.FindProperty("m_MainLightShadowmapResolution").intValue = 2048;
+                urpSo.ApplyModifiedPropertiesWithoutUndo();
+                EditorUtility.SetDirty(urpAsset);
+            }
 
             // ── Main Camera ──
             var cameraGo = new GameObject("Main Camera");
@@ -212,6 +242,10 @@ namespace Snowdrift.Editor
             camera.clearFlags = CameraClearFlags.Skybox; // use gradient sky
             camera.farClipPlane = 600f;
             cameraGo.AddComponent<AudioListener>();
+            // URP post-processing must be enabled per-camera or the GlobalVolume does nothing.
+            var camData = cameraGo.AddComponent<UniversalAdditionalCameraData>();
+            camData.renderPostProcessing = true;
+            camData.antialiasing = AntialiasingMode.FastApproximateAntialiasing;
             // CinemachineBrain required for Cinemachine to drive this camera
             cameraGo.AddComponent<CinemachineBrain>();
             // ImpulseListener on the camera GO
@@ -717,8 +751,23 @@ namespace Snowdrift.Editor
                     colorAdj = profile.Add<ColorAdjustments>(true);
                 colorAdj.contrast.Override(10f);
                 colorAdj.saturation.Override(8f);
+
+                // Tonemapping (Neutral): rolls off HDR highlights so bright snow keeps detail
+                Tonemapping tonemap;
+                if (!profile.TryGet<Tonemapping>(out tonemap))
+                    tonemap = profile.Add<Tonemapping>(true);
+                tonemap.mode.Override(TonemappingMode.Neutral);
+
+                // Subtle bloom: sun glints on snow crests, kicker lips
+                Bloom bloom;
+                if (!profile.TryGet<Bloom>(out bloom))
+                    bloom = profile.Add<Bloom>(true);
+                bloom.threshold.Override(1.05f);
+                bloom.intensity.Override(0.4f);
+                bloom.scatter.Override(0.6f);
+
                 EditorUtility.SetDirty(profile);
-                Debug.Log("[ProjectSetup] Added ColorAdjustments (contrast +10, saturation +8) to volume profile.");
+                Debug.Log("[ProjectSetup] Volume profile: ColorAdjustments + Tonemapping(Neutral) + Bloom.");
             }
 
             // ── Add scene to build settings ──

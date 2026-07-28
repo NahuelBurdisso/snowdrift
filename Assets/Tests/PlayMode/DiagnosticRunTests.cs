@@ -201,7 +201,7 @@ namespace Snowdrift.PlayModeTests
                 var v = board.Velocity;
                 maxY = Mathf.Max(maxY, p.y);
                 maxVelY = Mathf.Max(maxVelY, v.y);
-                sb.AppendLine($"[Diag] {t,2}s | y={p.y,8:F2} | velY={v.y,7:F2} | spd={v.magnitude,6:F2} | air={board.Airborne} | crash={board.Crashed}");
+                sb.AppendLine($"[Diag] {t,2}s | x={p.x,7:F2} y={p.y,8:F2} z={p.z,8:F2} | velY={v.y,7:F2} | spd={v.magnitude,6:F2} | air={board.Airborne} | crash={board.Crashed}");
 
                 // Inject a jump every 6 s to mimic player input.
                 if (t > 0 && t % 6 == 0 && !board.Crashed && !board.Airborne)

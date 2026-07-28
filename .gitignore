@@ -18,3 +18,4 @@ _incoming/
 # Batchmode screenshot output (generated, not versioned)
 Screenshots/
 diag-*.xml
+test-results-*.xml

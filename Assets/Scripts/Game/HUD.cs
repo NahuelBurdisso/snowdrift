@@ -103,7 +103,7 @@ namespace Snowdrift.Game
             pauseText.enabled = paused;
             if (paused && !_wasPaused)
             {
-                pauseText.text = $"PAUSED\nBest: {PlayerPrefs.GetInt("best_score", 0):N0}  {PlayerPrefs.GetFloat("best_dist", 0f):0}m\n[Esc] resume  [R] restart  [Q] quit";
+                pauseText.text = $"PAUSED\nBest: {PlayerPrefs.GetInt("best_score", 0):N0}  {PlayerPrefs.GetFloat("best_dist", 0f):0}m\n[Esc] resume  [R] restart  [Q] quit\n[M] music  [-/=] volume";
             }
             // Q-quit handled by BoardController alongside R/Esc (single input owner).
             _wasPaused = paused;

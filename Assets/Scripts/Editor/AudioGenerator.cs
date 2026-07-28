@@ -25,6 +25,9 @@ namespace Snowdrift.Editor
             WriteWav("Assets/Audio/wind.wav",  GenerateWind(4f));
             WriteWav("Assets/Audio/carve.wav", GenerateCarve(2f));
             WriteWav("Assets/Audio/thump.wav", GenerateThump(0.35f));
+            WriteWav("Assets/Audio/music.wav", GenerateMusic());
+            WriteWav("Assets/Audio/crash.wav", GenerateCrash(0.6f));
+            WriteWav("Assets/Audio/chime.wav", GenerateChime(0.5f));
 
             AssetDatabase.Refresh();
 
@@ -32,8 +35,11 @@ namespace Snowdrift.Editor
             ConfigureImporter("Assets/Audio/wind.wav");
             ConfigureImporter("Assets/Audio/carve.wav");
             ConfigureImporter("Assets/Audio/thump.wav");
+            ConfigureImporter("Assets/Audio/music.wav");
+            ConfigureImporter("Assets/Audio/crash.wav");
+            ConfigureImporter("Assets/Audio/chime.wav");
 
-            Debug.Log("[AudioGenerator] Generated wind.wav, carve.wav, thump.wav");
+            Debug.Log("[AudioGenerator] Generated wind, carve, thump, music, crash, chime");
         }
 
         static void ConfigureImporter(string path)
@@ -119,6 +125,99 @@ namespace Snowdrift.Editor
             Normalize(raw, 0.9f);
             // Tiny fade-in/out to kill clicks
             Fade(raw, (int)(SampleRate * 0.004f));
+            return raw;
+        }
+
+        // Ambient music loop: four-chord pad progression (Am - F - C - G), each chord
+        // 2.4 s, soft sine partials with per-chord attack/release envelope plus an
+        // octave-down root for warmth. 9.6 s total, seam crossfaded for looping.
+        static float[] GenerateMusic()
+        {
+            const float chordSeconds = 2.4f;
+            float[][] chords =
+            {
+                new[] { 220.00f, 261.63f, 329.63f }, // Am
+                new[] { 174.61f, 220.00f, 261.63f }, // F
+                new[] { 261.63f, 329.63f, 392.00f }, // C
+                new[] { 196.00f, 246.94f, 293.66f }, // G
+            };
+            int perChord = (int)(SampleRate * chordSeconds);
+            int n = perChord * chords.Length;
+            var raw = new float[n];
+
+            for (int c = 0; c < chords.Length; c++)
+            {
+                var chord = chords[c];
+                float root = chord[0] * 0.5f; // octave-down warmth
+                for (int i = 0; i < perChord; i++)
+                {
+                    float t = (float)i / SampleRate;
+                    float u = (float)i / perChord;
+                    // Attack 0.4 s, release last 0.5 s — chords swell into each other
+                    float env = Mathf.Clamp01(t / 0.4f) * Mathf.Clamp01((chordSeconds - t) / 0.5f);
+                    float s = Mathf.Sin(2f * Mathf.PI * root * t) * 0.5f;
+                    for (int v = 0; v < chord.Length; v++)
+                    {
+                        // Slight detune per voice for chorus shimmer
+                        float f = chord[v] * (1f + 0.0015f * Mathf.Sin(2f * Mathf.PI * 0.3f * t + v * 2.1f));
+                        s += Mathf.Sin(2f * Mathf.PI * f * t) * 0.35f;
+                    }
+                    // Gentle tremolo so the pad breathes
+                    s *= 0.85f + 0.15f * Mathf.Sin(2f * Mathf.PI * 0.25f * (c * chordSeconds + t));
+                    raw[c * perChord + i] = s * env;
+                }
+            }
+            Normalize(raw, 0.45f);
+            CrossfadeLoop(raw, (int)(SampleRate * 0.3f));
+            return raw;
+        }
+
+        // Crash impact: heavy low-passed noise burst with fast decay plus an
+        // 80 -> 40 Hz sine drop for body.
+        static float[] GenerateCrash(float seconds)
+        {
+            int n = (int)(SampleRate * seconds);
+            var raw = new float[n];
+            var rng = new System.Random(24680);
+            float phase = 0f, lp = 0f;
+            for (int i = 0; i < n; i++)
+            {
+                float t = (float)i / SampleRate;
+                float u = t / seconds;
+                float white = (float)(rng.NextDouble() * 2.0 - 1.0);
+                lp += 0.10f * (white - lp);
+                float noise = lp * Mathf.Exp(-7f * u);
+
+                float freq = Mathf.Lerp(80f, 40f, u);
+                phase += 2f * Mathf.PI * freq / SampleRate;
+                float body = Mathf.Sin(phase) * Mathf.Exp(-6f * u) * 0.7f;
+
+                raw[i] = noise + body;
+            }
+            Normalize(raw, 0.9f);
+            Fade(raw, (int)(SampleRate * 0.004f));
+            return raw;
+        }
+
+        // Clean-trick chime: two bell partials (A5 then D6) with exponential decay,
+        // second note delayed 0.09 s for a quick ascending "ding-ding".
+        static float[] GenerateChime(float seconds)
+        {
+            int n = (int)(SampleRate * seconds);
+            var raw = new float[n];
+            for (int i = 0; i < n; i++)
+            {
+                float t = (float)i / SampleRate;
+                float s = Mathf.Sin(2f * Mathf.PI * 880f * t) * Mathf.Exp(-8f * t);
+                if (t > 0.09f)
+                {
+                    float t2 = t - 0.09f;
+                    s += Mathf.Sin(2f * Mathf.PI * 1174.66f * t2) * Mathf.Exp(-8f * t2) * 0.9f;
+                }
+                raw[i] = s;
+            }
+            Normalize(raw, 0.6f);
+            Fade(raw, (int)(SampleRate * 0.003f));
             return raw;
         }
 

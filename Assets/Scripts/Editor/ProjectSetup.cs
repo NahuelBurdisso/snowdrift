@@ -202,6 +202,9 @@ namespace Snowdrift.Editor
             var windClip  = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/wind.wav");
             var carveClip = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/carve.wav");
             var thumpClip = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/thump.wav");
+            var musicClip = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/music.wav");
+            var crashSfx  = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/crash.wav");
+            var chimeSfx  = AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/chime.wav");
 
             // ── Directional light ──
             var lightGo = new GameObject("Directional Light");
@@ -477,6 +480,15 @@ namespace Snowdrift.Editor
             oneShotsSource.spatialBlend = 0f;
             oneShotsSource.playOnAwake = false;
 
+            var musicLoopGo = new GameObject("MusicLoop");
+            musicLoopGo.transform.SetParent(playerGo.transform, false);
+            var musicSource = musicLoopGo.AddComponent<AudioSource>();
+            musicSource.loop = true;
+            musicSource.spatialBlend = 0f;
+            musicSource.volume = 0.35f;
+            musicSource.playOnAwake = true;
+            if (musicClip != null) { musicSource.clip = musicClip; musicSource.Play(); }
+
             // ── Global Volume ──
             var volumeGo = new GameObject("GlobalVolume");
             var vol = volumeGo.AddComponent<Volume>();
@@ -513,6 +525,9 @@ namespace Snowdrift.Editor
             gameFeel.carveLoop = carveSource;
             gameFeel.oneShots = oneShotsSource;
             if (thumpClip != null) gameFeel.landThump = thumpClip;
+            gameFeel.musicLoop = musicSource;
+            if (crashSfx != null) gameFeel.crashClip = crashSfx;
+            if (chimeSfx != null) gameFeel.chimeClip = chimeSfx;
 
             // ── TerrainStream ──
             var terrainGo = new GameObject("TerrainStream");
